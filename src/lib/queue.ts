@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from "bullmq";
 import IORedis from "ioredis";
 import { scrapeUrl, scrapePortal, getAllPortals } from "./apify";
 import { deduplicateProperties } from "./dedup";
+import { processBatchProperties } from "./notification-service";
 import type { NormalizedProperty } from "@/types/property";
 
 const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
@@ -46,6 +47,10 @@ async function processScrapeJob(job: Job<ScrapeJobData>): Promise<{
   total: number;
   new: number;
   properties: NormalizedProperty[];
+  notifications: {
+    matched: number;
+    sent: number;
+  };
 }> {
   const { type } = job.data;
 
@@ -55,16 +60,25 @@ async function processScrapeJob(job: Job<ScrapeJobData>): Promise<{
       const properties = await scrapeUrl(job.data.url);
       const newProperties = deduplicateProperties(properties);
 
+      await job.updateProgress({ step: "matching", count: newProperties.length });
+      const notifResult = await processBatchProperties(newProperties);
+
       await job.updateProgress({
         step: "completed",
         total: properties.length,
         new: newProperties.length,
+        matched: notifResult.matched,
+        sent: notifResult.notificationsSent,
       });
 
       return {
         total: properties.length,
         new: newProperties.length,
         properties: newProperties,
+        notifications: {
+          matched: notifResult.matched,
+          sent: notifResult.notificationsSent,
+        },
       };
     }
 
@@ -74,16 +88,25 @@ async function processScrapeJob(job: Job<ScrapeJobData>): Promise<{
       const properties = await scrapePortal(job.data.portal, maxItems);
       const newProperties = deduplicateProperties(properties);
 
+      await job.updateProgress({ step: "matching", count: newProperties.length });
+      const notifResult = await processBatchProperties(newProperties);
+
       await job.updateProgress({
         step: "completed",
         total: properties.length,
         new: newProperties.length,
+        matched: notifResult.matched,
+        sent: notifResult.notificationsSent,
       });
 
       return {
         total: properties.length,
         new: newProperties.length,
         properties: newProperties,
+        notifications: {
+          matched: notifResult.matched,
+          sent: notifResult.notificationsSent,
+        },
       };
     }
 
@@ -111,16 +134,25 @@ async function processScrapeJob(job: Job<ScrapeJobData>): Promise<{
 
       const newProperties = deduplicateProperties(allProperties);
 
+      await job.updateProgress({ step: "matching", count: newProperties.length });
+      const notifResult = await processBatchProperties(newProperties);
+
       await job.updateProgress({
         step: "completed",
         total: allProperties.length,
         new: newProperties.length,
+        matched: notifResult.matched,
+        sent: notifResult.notificationsSent,
       });
 
       return {
         total: allProperties.length,
         new: newProperties.length,
         properties: newProperties,
+        notifications: {
+          matched: notifResult.matched,
+          sent: notifResult.notificationsSent,
+        },
       };
     }
 
