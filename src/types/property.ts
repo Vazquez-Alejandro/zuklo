@@ -41,7 +41,7 @@ export interface PortalConfig {
   actorId: string;
   urlPatterns: RegExp[];
   inputMapper: (url: string) => Record<string, unknown>;
-  outputMapper: (item: Record<string, unknown>) => Partial<NormalizedProperty>;
+  outputMapper: (item: Record<string, any>) => Partial<NormalizedProperty>;
 }
 
 export interface ScrapingJob {

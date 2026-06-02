@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       case "stop-recurring": {
         const jobs = await scrapingQueue.getJobSchedulers();
         for (const job of jobs) {
-          if (job.name === "recurring-scrape-all") {
+          if (job.name === "recurring-scrape-all" && job.id) {
             await scrapingQueue.removeJobScheduler(job.id);
           }
         }

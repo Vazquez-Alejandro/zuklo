@@ -116,7 +116,7 @@ export interface CreateTenantProfileInput {
   documents?: TenantProfile["documents"];
 }
 
-export interface UpdateTenantProfileInput extends Partial<CreateTenantProfileInput> {}
+export type UpdateTenantProfileInput = Partial<CreateTenantProfileInput>;
 
 const profilesStore = new Map<string, TenantProfile>();
 

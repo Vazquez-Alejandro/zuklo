@@ -5,12 +5,14 @@ import {
   deleteFilter,
   type CreateFilterInput,
 } from "@/lib/filters";
+import { checkFeatureAccess, incrementUsage } from "@/lib/monetization";
+import { requireAuth } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const {
-      userId,
       name,
       priceRange,
       expensesRange,
@@ -23,15 +25,23 @@ export async function POST(request: NextRequest) {
       notification,
     } = body;
 
-    if (!userId || !name) {
+    if (!name) {
       return NextResponse.json(
-        { error: "userId and name are required" },
+        { error: "name is required" },
         { status: 400 }
       );
     }
 
+    const access = await checkFeatureAccess(user.id, "maxFilters");
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason },
+        { status: 403 }
+      );
+    }
+
     const input: CreateFilterInput = {
-      userId,
+      userId: user.id,
       name,
       priceRange,
       expensesRange,
@@ -45,9 +55,13 @@ export async function POST(request: NextRequest) {
     };
 
     const filter = createFilter(input);
+    await incrementUsage(user.id, "filtersCreated");
 
     return NextResponse.json({ filter }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -57,19 +71,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
-    }
-
-    const filters = getFiltersByUser(userId);
+    const user = await requireAuth(request);
+    const filters = getFiltersByUser(user.id);
     return NextResponse.json({ filters });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -79,6 +87,7 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const filterId = searchParams.get("filterId");
 
@@ -89,13 +98,22 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const filters = getFiltersByUser(user.id);
+    const belongsToUser = filters.some((f) => f.id === filterId);
+    if (!belongsToUser) {
+      return NextResponse.json({ error: "Filter not found" }, { status: 404 });
+    }
+
     const deleted = deleteFilter(filterId);
     if (!deleted) {
       return NextResponse.json({ error: "Filter not found" }, { status: 404 });
     }
 
     return NextResponse.json({ deleted: true });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

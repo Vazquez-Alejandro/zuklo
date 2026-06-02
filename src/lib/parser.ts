@@ -121,9 +121,9 @@ function extractRestrictions(
     petFriendly:
       property.features.petFriendly ??
       (raw.pet_friendly as boolean) ??
-      desc.includes("mascota") ||
+      (desc.includes("mascota") ||
         desc.includes("pet") ||
-        desc.includes("permite mascotas"),
+        desc.includes("permite mascotas")),
     petTypes: desc.includes("gato") || desc.includes("cat")
       ? ["dog", "cat"]
       : desc.includes("mascota") || desc.includes("pet")

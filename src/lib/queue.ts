@@ -1,13 +1,14 @@
 import { Queue, Worker, Job } from "bullmq";
-import IORedis from "ioredis";
 import { scrapeUrl, scrapePortal, getAllPortals } from "./apify";
 import { deduplicateProperties } from "./dedup";
 import { processBatchProperties } from "./notification-service";
 import type { NormalizedProperty } from "@/types/property";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+const connection = {
+  host: "localhost",
+  port: 6379,
   maxRetriesPerRequest: null,
-});
+};
 
 export const scrapingQueue = new Queue("scraping", {
   connection,
@@ -187,7 +188,7 @@ export async function scheduleRecurringScrape(
 ): Promise<void> {
   const existingJobs = await scrapingQueue.getJobSchedulers();
   for (const job of existingJobs) {
-    if (job.name === "recurring-scrape-all") {
+    if (job.name === "recurring-scrape-all" && job.id) {
       await scrapingQueue.removeJobScheduler(job.id);
     }
   }

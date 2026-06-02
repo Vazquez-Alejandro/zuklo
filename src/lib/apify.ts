@@ -18,7 +18,7 @@ const PORTALS: PortalConfig[] = [
     outputMapper: (item) => ({
       portal: "zillow",
       portalId: String(item.zpid || item.id || ""),
-      url: item.detailUrl || item.url || "",
+      url: String(item.detailUrl || item.url || ""),
       title: item.addressStreet || item.address || "",
       description: item.description || "",
       price: Number(item.price || item.rentZestimate || 0),
@@ -287,6 +287,7 @@ const PORTALS: PortalConfig[] = [
         city: item.location?.city || "",
         state: item.location?.state || "",
         country: "AR",
+        zip: item.location?.zip || "",
       },
       features: {
         bedrooms: Number(item.attributes?.bedrooms || 0),

@@ -6,17 +6,23 @@ import {
   deleteTenantProfile,
   generateProfileSummary,
 } from "@/lib/tenant-profile";
+import { checkFeatureAccess, incrementUsage } from "@/lib/monetization";
+import { requireAuth } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
-    const { userId } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const access = await checkFeatureAccess(user.id, "tenantProfile");
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason },
+        { status: 403 }
+      );
     }
 
-    const existing = getTenantProfileByUser(userId);
+    const existing = getTenantProfileByUser(user.id);
     if (existing) {
       return NextResponse.json(
         { error: "Profile already exists for this user" },
@@ -24,73 +30,83 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const profile = createTenantProfile(body);
+    const profile = createTenantProfile({ ...body, userId: user.id });
     const summary = generateProfileSummary(profile);
+    await incrementUsage(user.id, "tenantProfilesCreated");
 
     return NextResponse.json({ profile, summary }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const user = await requireAuth(request);
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
-    }
-
-    const profile = getTenantProfileByUser(userId);
+    const profile = getTenantProfileByUser(user.id);
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     const summary = generateProfileSummary(profile);
     return NextResponse.json({ profile, summary });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
-    const { profileId, ...updateData } = body;
+    const { ...updateData } = body;
 
-    if (!profileId) {
-      return NextResponse.json({ error: "profileId is required" }, { status: 400 });
+    const existing = getTenantProfileByUser(user.id);
+    if (!existing) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const profile = updateTenantProfile(profileId, updateData);
+    const profile = updateTenantProfile(existing.id, { ...updateData, userId: user.id });
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     const summary = generateProfileSummary(profile);
     return NextResponse.json({ profile, summary });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const profileId = searchParams.get("profileId");
+    const user = await requireAuth(request);
 
-    if (!profileId) {
-      return NextResponse.json({ error: "profileId is required" }, { status: 400 });
+    const existing = getTenantProfileByUser(user.id);
+    if (!existing) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const deleted = deleteTenantProfile(profileId);
+    const deleted = deleteTenantProfile(existing.id);
     if (!deleted) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     return NextResponse.json({ deleted: true });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

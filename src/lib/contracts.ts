@@ -77,7 +77,9 @@ export interface CreateContractInput {
   indexation: Contract["indexation"];
 }
 
-export interface UpdateContractInput extends Partial<CreateContractInput> {}
+export type UpdateContractInput = Partial<CreateContractInput> & {
+  metadata?: Partial<Contract["metadata"]>;
+};
 
 const contractsStore = new Map<string, Contract>();
 

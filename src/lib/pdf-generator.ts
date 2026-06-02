@@ -1,4 +1,5 @@
 import type { TenantProfile } from "./tenant-profile";
+import { generateProfileSummary } from "./tenant-profile";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -16,9 +17,11 @@ function getVerificationBadge(score: number): { color: string; label: string } {
 }
 
 export function generateProfileHTML(profile: TenantProfile): string {
-  const summary = getVerificationBadge(profile.metadata.verificationScore);
+  const badge = getVerificationBadge(profile.metadata.verificationScore);
+  const summary = generateProfileSummary(profile);
   const totalIncome =
     profile.income.primaryIncome + profile.income.secondaryIncome;
+  const displayName = `${profile.personalInfo.firstName} ${profile.personalInfo.lastName}`;
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -87,7 +90,7 @@ export function generateProfileHTML(profile: TenantProfile): string {
     }
 
     .verification-badge {
-      background: ${summary.color};
+      background: ${badge.color};
       color: white;
       padding: 8px 16px;
       border-radius: 20px;
@@ -350,13 +353,13 @@ export function generateProfileHTML(profile: TenantProfile): string {
           <div class="brand-tagline">Ficha Verificada de Inquilino</div>
         </div>
       </div>
-      <div class="verification-badge">${summary.label} • ${profile.metadata.verificationScore}%</div>
+      <div class="verification-badge">${badge.label} • ${profile.metadata.verificationScore}%</div>
     </div>
 
     <div class="profile-header">
       <div class="avatar">${profile.personalInfo.firstName[0]}${profile.personalInfo.lastName[0]}</div>
       <div class="profile-info">
-        <h1>${summary.displayName}</h1>
+        <h1>${displayName}</h1>
         <div class="subtitle">DNI: ${profile.personalInfo.dni} • CUIL: ${profile.personalInfo.cuil}</div>
         <div class="quick-stats">
           <div class="stat">
@@ -560,7 +563,7 @@ export async function generateProfilePDF(
     const page = await browser.newPage();
     const html = generateProfileHTML(profile);
 
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "load" });
     await page.emulateMediaType("screen");
 
     const pdfBuffer = await page.pdf({

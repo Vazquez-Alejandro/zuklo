@@ -115,6 +115,25 @@ export function calculateRentIncrease(
   currentDate: string,
   customPercentage?: number
 ): RentIncreaseResult {
+  if (indexType === "fixed" || indexType === "custom") {
+    const percentage = customPercentage || 0;
+    const increaseAmount = currentRent * (percentage / 100);
+    const newRent = currentRent + increaseAmount;
+
+    return {
+      previousRent: currentRent,
+      newRent: Math.round(newRent),
+      increasePercentage: Math.round(percentage * 100) / 100,
+      increaseAmount: Math.round(increaseAmount),
+      indexUsed: indexType.toUpperCase(),
+      indexPreviousValue: 0,
+      indexCurrentValue: 0,
+      periodStart: baseDate,
+      periodEnd: currentDate,
+      formula: `${currentRent} × ${percentage}% = ${increaseAmount.toFixed(2)}`,
+    };
+  }
+
   const baseIndex = getClosestIndex(getIndexData(indexType), baseDate);
   const currentIndex = getClosestIndex(getIndexData(indexType), currentDate);
 
@@ -133,14 +152,7 @@ export function calculateRentIncrease(
     };
   }
 
-  let percentage: number;
-
-  if (indexType === "fixed" || indexType === "custom") {
-    percentage = customPercentage || 0;
-  } else {
-    percentage = ((currentIndex.value - baseIndex.value) / baseIndex.value) * 100;
-  }
-
+  const percentage = ((currentIndex.value - baseIndex.value) / baseIndex.value) * 100;
   const increaseAmount = currentRent * (percentage / 100);
   const newRent = currentRent + increaseAmount;
 
@@ -149,7 +161,7 @@ export function calculateRentIncrease(
     newRent: Math.round(newRent),
     increasePercentage: Math.round(percentage * 100) / 100,
     increaseAmount: Math.round(increaseAmount),
-    indexUsed: indexType === "icl" ? "Índice de Contratos de Locación" : indexType === "ipc" ? "Índice de Precios al Consumidor" : indexType.toUpperCase(),
+    indexUsed: indexType === "icl" ? "Índice de Contratos de Locación" : "Índice de Precios al Consumidor",
     indexPreviousValue: baseIndex.value,
     indexCurrentValue: currentIndex.value,
     periodStart: baseDate,
