@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const profile = getTenantProfileByUser(user.id);
+    const profile = await getTenantProfileByUser(user.id);
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }

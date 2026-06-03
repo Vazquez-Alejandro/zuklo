@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/supabase";
 import {
   calculateRentIncrease,
   calculateNextAdjustmentDate,
@@ -9,6 +10,7 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request);
     const body = await request.json();
     const { action } = body;
 
@@ -72,7 +74,10 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -100,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     const latest = getLatestIndexValue(type);
     return NextResponse.json({ index: latest });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

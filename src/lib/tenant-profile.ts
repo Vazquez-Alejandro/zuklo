@@ -1,3 +1,5 @@
+import { supabaseAdmin } from "./supabase";
+
 export interface TenantProfile {
   id: string;
   userId: string;
@@ -118,21 +120,44 @@ export interface CreateTenantProfileInput {
 
 export type UpdateTenantProfileInput = Partial<CreateTenantProfileInput>;
 
-const profilesStore = new Map<string, TenantProfile>();
+function rowToProfile(row: Record<string, unknown>): TenantProfile {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    personalInfo: row.personal_info as TenantProfile["personalInfo"],
+    employment: row.employment as TenantProfile["employment"],
+    income: row.income as TenantProfile["income"],
+    guarantor: row.guarantor as TenantProfile["guarantor"],
+    coHabitants: (row.co_habitants as TenantProfile["coHabitants"]) || [],
+    pets: (row.pets as TenantProfile["pets"]) || [],
+    references: (row.references_data as TenantProfile["references"]) || [],
+    rentalHistory: (row.rental_history as TenantProfile["rentalHistory"]) || [],
+    documents: row.documents as TenantProfile["documents"],
+    metadata: {
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+      completedAt: (row.completed_at as string) || null,
+      isVerified: (row.is_verified as boolean) || false,
+      verificationScore: (row.verification_score as number) || 0,
+    },
+  };
+}
 
-export function createTenantProfile(input: CreateTenantProfileInput): TenantProfile {
+export async function createTenantProfile(input: CreateTenantProfileInput): Promise<TenantProfile> {
   const now = new Date().toISOString();
-  const profile: TenantProfile = {
-    id: `tenant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    userId: input.userId,
-    personalInfo: input.personalInfo,
+  const id = `tenant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const row = {
+    id,
+    user_id: input.userId,
+    personal_info: input.personalInfo,
     employment: input.employment,
     income: input.income,
     guarantor: input.guarantor,
-    coHabitants: input.coHabitants || [],
+    co_habitants: input.coHabitants || [],
     pets: input.pets || [],
-    references: input.references || [],
-    rentalHistory: input.rentalHistory || [],
+    references_data: input.references || [],
+    rental_history: input.rentalHistory || [],
     documents: input.documents || {
       dniFront: "",
       dniBack: "",
@@ -141,66 +166,119 @@ export function createTenantProfile(input: CreateTenantProfileInput): TenantProf
       criminalRecord: "",
       creditReport: "",
     },
-    metadata: {
-      createdAt: now,
-      updatedAt: now,
-      completedAt: null,
-      isVerified: false,
-      verificationScore: calculateVerificationScore(input),
-    },
+    is_verified: false,
+    verification_score: calculateVerificationScore(input),
+    completed_at: null,
+    created_at: now,
+    updated_at: now,
   };
 
-  profilesStore.set(profile.id, profile);
-  return profile;
+  const { data, error } = await supabaseAdmin
+    .from("tenant_profiles")
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create tenant profile: ${error.message}`);
+  }
+
+  return rowToProfile(data);
 }
 
-export function updateTenantProfile(
+export async function updateTenantProfile(
   id: string,
   input: UpdateTenantProfileInput
-): TenantProfile | null {
-  const existing = profilesStore.get(id);
+): Promise<TenantProfile | null> {
+  const { data: existing } = await supabaseAdmin
+    .from("tenant_profiles")
+    .select("*")
+    .eq("id", id)
+    .single();
+
   if (!existing) return null;
 
-  const updated: TenantProfile = {
-    ...existing,
-    ...input,
-    personalInfo: input.personalInfo || existing.personalInfo,
+  const merged = {
+    personal_info: input.personalInfo || existing.personal_info,
     employment: input.employment || existing.employment,
     income: input.income || existing.income,
     guarantor: input.guarantor || existing.guarantor,
-    coHabitants: input.coHabitants || existing.coHabitants,
+    co_habitants: input.coHabitants || existing.co_habitants,
     pets: input.pets || existing.pets,
-    references: input.references || existing.references,
-    rentalHistory: input.rentalHistory || existing.rentalHistory,
+    references_data: input.references || existing.references_data,
+    rental_history: input.rentalHistory || existing.rental_history,
     documents: input.documents || existing.documents,
-    metadata: {
-      ...existing.metadata,
-      updatedAt: new Date().toISOString(),
-      verificationScore: calculateVerificationScore({
-        ...existing,
-        ...input,
-      } as CreateTenantProfileInput),
-    },
+    updated_at: new Date().toISOString(),
+    verification_score: calculateVerificationScore({
+      userId: existing.user_id,
+      personalInfo: input.personalInfo || existing.personal_info,
+      employment: input.employment || existing.employment,
+      income: input.income || existing.income,
+      guarantor: input.guarantor || existing.guarantor,
+      coHabitants: input.coHabitants || existing.co_habitants,
+      pets: input.pets || existing.pets,
+      references: input.references || existing.references_data,
+      rentalHistory: input.rentalHistory || existing.rental_history,
+      documents: input.documents || existing.documents,
+    } as CreateTenantProfileInput),
   };
 
-  profilesStore.set(id, updated);
-  return updated;
+  const { data, error } = await supabaseAdmin
+    .from("tenant_profiles")
+    .update(merged)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update tenant profile: ${error.message}`);
+  }
+
+  return rowToProfile(data);
 }
 
-export function getTenantProfile(id: string): TenantProfile | null {
-  return profilesStore.get(id) || null;
+export async function getTenantProfile(id: string): Promise<TenantProfile | null> {
+  const { data, error } = await supabaseAdmin
+    .from("tenant_profiles")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+
+  return rowToProfile(data);
 }
 
-export function getTenantProfileByUser(userId: string): TenantProfile | null {
-  return Array.from(profilesStore.values()).find((p) => p.userId === userId) || null;
+export async function getTenantProfileByUser(userId: string): Promise<TenantProfile | null> {
+  const { data, error } = await supabaseAdmin
+    .from("tenant_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !data) return null;
+
+  return rowToProfile(data);
 }
 
-export function getAllTenantProfiles(): TenantProfile[] {
-  return Array.from(profilesStore.values());
+export async function getAllTenantProfiles(): Promise<TenantProfile[]> {
+  const { data, error } = await supabaseAdmin
+    .from("tenant_profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map(rowToProfile);
 }
 
-export function deleteTenantProfile(id: string): boolean {
-  return profilesStore.delete(id);
+export async function deleteTenantProfile(id: string): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from("tenant_profiles")
+    .delete()
+    .eq("id", id);
+
+  return !error;
 }
 
 function calculateVerificationScore(profile: CreateTenantProfileInput | TenantProfile): number {

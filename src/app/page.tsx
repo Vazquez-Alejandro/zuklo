@@ -2,12 +2,6 @@
 
 import { useState, useEffect } from "react";
 
-interface Portal {
-  name: string;
-  slug: string;
-  urlPatterns: string[];
-}
-
 interface Job {
   id: string;
   name: string;

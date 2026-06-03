@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/supabase";
 import { registerDeviceToken, removeDeviceToken, getUserTokens } from "@/lib/notification-service";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
-    const { userId, token } = body;
+    const { token } = body;
 
-    if (!userId || !token) {
+    if (!token) {
       return NextResponse.json(
-        { error: "userId and token are required" },
+        { error: "token is required" },
         { status: 400 }
       );
     }
 
-    registerDeviceToken(userId, token);
-    const tokens = getUserTokens(userId);
+    await registerDeviceToken(user.id, token);
+    const tokens = await getUserTokens(user.id);
 
     return NextResponse.json({
       registered: true,
       totalTokens: tokens.length,
     });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -30,25 +35,28 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
     const token = searchParams.get("token");
 
-    if (!userId || !token) {
+    if (!token) {
       return NextResponse.json(
-        { error: "userId and token are required" },
+        { error: "token is required" },
         { status: 400 }
       );
     }
 
-    removeDeviceToken(userId, token);
-    const tokens = getUserTokens(userId);
+    await removeDeviceToken(user.id, token);
+    const tokens = await getUserTokens(user.id);
 
     return NextResponse.json({
       removed: true,
       remainingTokens: tokens.length,
     });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -58,23 +66,18 @@ export async function DELETE(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const user = await requireAuth(request);
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
-    }
-
-    const tokens = getUserTokens(userId);
+    const tokens = await getUserTokens(user.id);
     return NextResponse.json({
-      userId,
+      userId: user.id,
       tokens: tokens.map((t) => t.substring(0, 20) + "..."),
       count: tokens.length,
     });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

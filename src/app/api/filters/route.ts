@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       notification,
     };
 
-    const filter = createFilter(input);
+    const filter = await createFilter(input);
     await incrementUsage(user.id, "filtersCreated");
 
     return NextResponse.json({ filter }, { status: 201 });
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request);
-    const filters = getFiltersByUser(user.id);
+    const filters = await getFiltersByUser(user.id);
     return NextResponse.json({ filters });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -98,13 +98,13 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const filters = getFiltersByUser(user.id);
+    const filters = await getFiltersByUser(user.id);
     const belongsToUser = filters.some((f) => f.id === filterId);
     if (!belongsToUser) {
       return NextResponse.json({ error: "Filter not found" }, { status: 404 });
     }
 
-    const deleted = deleteFilter(filterId);
+    const deleted = await deleteFilter(filterId);
     if (!deleted) {
       return NextResponse.json({ error: "Filter not found" }, { status: 404 });
     }

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existing = getTenantProfileByUser(user.id);
+    const existing = await getTenantProfileByUser(user.id);
     if (existing) {
       return NextResponse.json(
         { error: "Profile already exists for this user" },
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const profile = createTenantProfile({ ...body, userId: user.id });
+    const profile = await createTenantProfile({ ...body, userId: user.id });
     const summary = generateProfileSummary(profile);
     await incrementUsage(user.id, "tenantProfilesCreated");
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request);
 
-    const profile = getTenantProfileByUser(user.id);
+    const profile = await getTenantProfileByUser(user.id);
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
@@ -68,12 +68,12 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { ...updateData } = body;
 
-    const existing = getTenantProfileByUser(user.id);
+    const existing = await getTenantProfileByUser(user.id);
     if (!existing) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const profile = updateTenantProfile(existing.id, { ...updateData, userId: user.id });
+    const profile = await updateTenantProfile(existing.id, { ...updateData, userId: user.id });
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
@@ -92,12 +92,12 @@ export async function DELETE(request: NextRequest) {
   try {
     const user = await requireAuth(request);
 
-    const existing = getTenantProfileByUser(user.id);
+    const existing = await getTenantProfileByUser(user.id);
     if (!existing) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const deleted = deleteTenantProfile(existing.id);
+    const deleted = await deleteTenantProfile(existing.id);
     if (!deleted) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }

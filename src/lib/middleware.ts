@@ -16,7 +16,7 @@ export async function authMiddleware(
     }
 
     return handler(request, { id: user.id, email: user.email || "" });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

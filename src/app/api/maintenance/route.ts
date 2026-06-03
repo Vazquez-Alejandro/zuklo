@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/supabase";
 import {
   createMaintenanceExpense,
   getMaintenanceExpensesByContract,
@@ -13,28 +14,32 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
-    const { contractId, userId } = body;
+    const { contractId } = body;
 
-    if (!contractId || !userId) {
+    if (!contractId) {
       return NextResponse.json(
-        { error: "contractId and userId are required" },
+        { error: "contractId is required" },
         { status: 400 }
       );
     }
 
-    const expense = createMaintenanceExpense(body);
+    const expense = await createMaintenanceExpense({ ...body, userId: user.id });
     return NextResponse.json({ expense }, { status: 201 });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
-    const userId = searchParams.get("userId");
     const action = searchParams.get("action");
 
     if (action === "categories") {
@@ -42,27 +47,24 @@ export async function GET(request: NextRequest) {
     }
 
     if (contractId) {
-      const expenses = getMaintenanceExpensesByContract(contractId);
-      const summary = getExpenseSummary(contractId);
+      const expenses = await getMaintenanceExpensesByContract(contractId);
+      const summary = await getExpenseSummary(contractId);
       return NextResponse.json({ expenses, summary });
     }
 
-    if (userId) {
-      const expenses = getMaintenanceExpensesByUser(userId);
-      return NextResponse.json({ expenses });
+    const expenses = await getMaintenanceExpensesByUser(user.id);
+    return NextResponse.json({ expenses });
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    return NextResponse.json(
-      { error: "contractId or userId is required" },
-      { status: 400 }
-    );
-  } catch (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const { expenseId, action, photoUrl, ...updateData } = body;
 
@@ -71,7 +73,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (action === "add-photo" && photoUrl) {
-      const expense = addPhotoToExpense(expenseId, photoUrl);
+      const expense = await addPhotoToExpense(expenseId, photoUrl);
       if (!expense) {
         return NextResponse.json({ error: "Expense not found" }, { status: 404 });
       }
@@ -79,26 +81,30 @@ export async function PUT(request: NextRequest) {
     }
 
     if (action === "remove-photo" && photoUrl) {
-      const expense = removePhotoFromExpense(expenseId, photoUrl);
+      const expense = await removePhotoFromExpense(expenseId, photoUrl);
       if (!expense) {
         return NextResponse.json({ error: "Expense not found" }, { status: 404 });
       }
       return NextResponse.json({ expense });
     }
 
-    const expense = updateMaintenanceExpense(expenseId, updateData);
+    const expense = await updateMaintenanceExpense(expenseId, { ...updateData, userId: user.id });
     if (!expense) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
     }
 
     return NextResponse.json({ expense });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const expenseId = searchParams.get("expenseId");
 
@@ -106,13 +112,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "expenseId is required" }, { status: 400 });
     }
 
-    const deleted = deleteMaintenanceExpense(expenseId);
+    const deleted = await deleteMaintenanceExpense(expenseId);
     if (!deleted) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
     }
 
     return NextResponse.json({ deleted: true });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

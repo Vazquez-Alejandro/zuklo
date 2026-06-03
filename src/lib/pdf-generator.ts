@@ -1,6 +1,15 @@
 import type { TenantProfile } from "./tenant-profile";
 import { generateProfileSummary } from "./tenant-profile";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -21,14 +30,14 @@ export function generateProfileHTML(profile: TenantProfile): string {
   const summary = generateProfileSummary(profile);
   const totalIncome =
     profile.income.primaryIncome + profile.income.secondaryIncome;
-  const displayName = `${profile.personalInfo.firstName} ${profile.personalInfo.lastName}`;
+  const displayName = `${escapeHtml(profile.personalInfo.firstName)} ${escapeHtml(profile.personalInfo.lastName)}`;
 
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ficha de Inquilino - ${profile.personalInfo.firstName} ${profile.personalInfo.lastName}</title>
+  <title>Ficha de Inquilino - ${escapeHtml(profile.personalInfo.firstName)} ${escapeHtml(profile.personalInfo.lastName)}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
@@ -357,10 +366,10 @@ export function generateProfileHTML(profile: TenantProfile): string {
     </div>
 
     <div class="profile-header">
-      <div class="avatar">${profile.personalInfo.firstName[0]}${profile.personalInfo.lastName[0]}</div>
+      <div class="avatar">${escapeHtml(profile.personalInfo.firstName[0])}${escapeHtml(profile.personalInfo.lastName[0])}</div>
       <div class="profile-info">
         <h1>${displayName}</h1>
-        <div class="subtitle">DNI: ${profile.personalInfo.dni} • CUIL: ${profile.personalInfo.cuil}</div>
+        <div class="subtitle">DNI: ${escapeHtml(profile.personalInfo.dni)} • CUIL: ${escapeHtml(profile.personalInfo.cuil)}</div>
         <div class="quick-stats">
           <div class="stat">
             <span class="stat-label">Ingreso Mensual</span>
@@ -387,31 +396,31 @@ export function generateProfileHTML(profile: TenantProfile): string {
       <div class="grid-2">
         <div class="field">
           <span class="field-label">Nombre Completo</span>
-          <div class="field-value">${summary.displayName}</div>
+          <div class="field-value">${escapeHtml(summary.displayName)}</div>
         </div>
         <div class="field">
           <span class="field-label">Fecha de Nacimiento</span>
-          <div class="field-value">${profile.personalInfo.dateOfBirth}</div>
+          <div class="field-value">${escapeHtml(profile.personalInfo.dateOfBirth)}</div>
         </div>
         <div class="field">
           <span class="field-label">Nacionalidad</span>
-          <div class="field-value">${profile.personalInfo.nationality}</div>
+          <div class="field-value">${escapeHtml(profile.personalInfo.nationality)}</div>
         </div>
         <div class="field">
           <span class="field-label">Estado Civil</span>
-          <div class="field-value">${profile.personalInfo.maritalStatus}</div>
+          <div class="field-value">${escapeHtml(profile.personalInfo.maritalStatus)}</div>
         </div>
         <div class="field">
           <span class="field-label">Teléfono</span>
-          <div class="field-value">${profile.personalInfo.phone}</div>
+          <div class="field-value">${escapeHtml(profile.personalInfo.phone)}</div>
         </div>
         <div class="field">
           <span class="field-label">Email</span>
-          <div class="field-value">${profile.personalInfo.email}</div>
+          <div class="field-value">${escapeHtml(profile.personalInfo.email)}</div>
         </div>
         <div class="field" style="grid-column: span 2">
           <span class="field-label">Domicilio Actual</span>
-          <div class="field-value">${profile.personalInfo.currentAddress}</div>
+          <div class="field-value">${escapeHtml(profile.personalInfo.currentAddress)}</div>
         </div>
       </div>
     </div>
@@ -430,19 +439,19 @@ export function generateProfileHTML(profile: TenantProfile): string {
         </div>
         <div class="field">
           <span class="field-label">Empresa / Razón Social</span>
-          <div class="field-value">${profile.employment.companyName}</div>
+          <div class="field-value">${escapeHtml(profile.employment.companyName)}</div>
         </div>
         <div class="field">
           <span class="field-label">Puesto</span>
-          <div class="field-value">${profile.employment.position}</div>
+          <div class="field-value">${escapeHtml(profile.employment.position)}</div>
         </div>
         <div class="field">
           <span class="field-label">Antigüedad</span>
-          <div class="field-value">${profile.employment.seniority}</div>
+          <div class="field-value">${escapeHtml(profile.employment.seniority)}</div>
         </div>
         <div class="field">
           <span class="field-label">Tipo de Contrato</span>
-          <div class="field-value">${profile.employment.contractType}</div>
+          <div class="field-value">${escapeHtml(profile.employment.contractType)}</div>
         </div>
         <div class="field">
           <span class="field-label">Recibos de Sueldo</span>
@@ -458,11 +467,11 @@ export function generateProfileHTML(profile: TenantProfile): string {
         <div class="grid-2">
           <div class="field">
             <span class="field-label">${profile.guarantor.isCorporate ? "Empresa Garante" : "Nombre del Garante"}</span>
-            <div class="field-value">${profile.guarantor.isCorporate ? profile.guarantor.corporateName : profile.guarantor.name}</div>
+            <div class="field-value">${escapeHtml(profile.guarantor.isCorporate ? profile.guarantor.corporateName : profile.guarantor.name)}</div>
           </div>
           <div class="field">
             <span class="field-label">${profile.guarantor.isCorporate ? "CUIT" : "DNI"}</span>
-            <div class="field-value">${profile.guarantor.isCorporate ? profile.guarantor.corporateCuit : profile.guarantor.dni}</div>
+            <div class="field-value">${escapeHtml(profile.guarantor.isCorporate ? profile.guarantor.corporateCuit : profile.guarantor.dni)}</div>
           </div>
           <div class="field">
             <span class="field-label">Ingreso Mensual</span>
@@ -470,7 +479,7 @@ export function generateProfileHTML(profile: TenantProfile): string {
           </div>
           <div class="field">
             <span class="field-label">Relación</span>
-            <div class="field-value">${profile.guarantor.relationship}</div>
+            <div class="field-value">${escapeHtml(profile.guarantor.relationship)}</div>
           </div>
         </div>
       </div>
@@ -488,7 +497,7 @@ export function generateProfileHTML(profile: TenantProfile): string {
         ${profile.pets.map(pet => `
           <div class="pet-tag">
             ${pet.type === "dog" ? "🐕" : pet.type === "cat" ? "🐈" : "🐦"}
-            ${pet.name} — ${pet.breed} (${pet.weight}kg)
+            ${escapeHtml(pet.name)} — ${escapeHtml(pet.breed)} (${pet.weight}kg)
             ${pet.vaccinated ? "• Vacunada" : ""}
             ${pet.sterilized ? "• Esterilizada" : ""}
           </div>
@@ -502,8 +511,8 @@ export function generateProfileHTML(profile: TenantProfile): string {
       <div class="section-title">Co-habitantes (${profile.coHabitants.length})</div>
       ${profile.coHabitants.map(person => `
         <div class="person-card">
-          <h4>${person.name}</h4>
-          <div class="detail">DNI: ${person.dni} • ${person.relationship} • ${person.age} años • ${person.occupation}</div>
+          <h4>${escapeHtml(person.name)}</h4>
+          <div class="detail">DNI: ${escapeHtml(person.dni)} • ${escapeHtml(person.relationship)} • ${person.age} años • ${escapeHtml(person.occupation)}</div>
         </div>
       `).join("")}
     </div>
@@ -514,8 +523,8 @@ export function generateProfileHTML(profile: TenantProfile): string {
       <div class="section-title">Referencias (${profile.references.length})</div>
       ${profile.references.map(ref => `
         <div class="reference-card">
-          <strong>${ref.name}</strong> — ${ref.relationship}<br>
-          <span style="font-size: 12px; color: #64748b;">${ref.phone} • ${ref.email} • Conocido desde ${ref.knownSince}</span>
+          <strong>${escapeHtml(ref.name)}</strong> — ${escapeHtml(ref.relationship)}<br>
+          <span style="font-size: 12px; color: #64748b;">${escapeHtml(ref.phone)} • ${escapeHtml(ref.email)} • Conocido desde ${escapeHtml(ref.knownSince)}</span>
         </div>
       `).join("")}
     </div>
@@ -526,11 +535,11 @@ export function generateProfileHTML(profile: TenantProfile): string {
       <div class="section-title">Historial de Alquileres</div>
       ${profile.rentalHistory.map(hist => `
         <div class="history-card">
-          <strong>${hist.address}</strong><br>
+          <strong>${escapeHtml(hist.address)}</strong><br>
           <span style="font-size: 12px; color: #64748b;">
-            Propietario: ${hist.landlord} • ${hist.landlordPhone}<br>
-            Duración: ${hist.duration} • Alquiler: ${formatCurrency(hist.rentAmount)}<br>
-            Motivo de salida: ${hist.reasonForLeaving}
+            Propietario: ${escapeHtml(hist.landlord)} • ${escapeHtml(hist.landlordPhone)}<br>
+            Duración: ${escapeHtml(hist.duration)} • Alquiler: ${formatCurrency(hist.rentAmount)}<br>
+            Motivo de salida: ${escapeHtml(hist.reasonForLeaving)}
           </span>
         </div>
       `).join("")}
@@ -555,7 +564,7 @@ export async function generateProfilePDF(
   try {
     const puppeteer = await import("puppeteer-core");
     const browser = await puppeteer.default.launch({
-      executablePath: "/usr/bin/google-chrome",
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome",
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });

@@ -1,7 +1,8 @@
 import { parseProperty, type ParsedProperty } from "./parser";
-import { getActiveFilters, type UserFilter } from "./filters";
+import { getActiveFilters } from "./filters";
 import { matchPropertyAgainstAllFilters, type MatchResult } from "./matcher";
 import { sendPropertyAlert } from "./notifications";
+import { supabaseAdmin } from "./supabase";
 import type { NormalizedProperty } from "@/types/property";
 
 export interface NotificationLog {
@@ -14,33 +15,39 @@ export interface NotificationLog {
   timestamp: string;
 }
 
-const notificationLogs: NotificationLog[] = [];
+export async function registerDeviceToken(userId: string, token: string): Promise<void> {
+  const { data: existing } = await supabaseAdmin
+    .from("device_tokens")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("token", token)
+    .single();
 
-interface UserDeviceTokens {
-  userId: string;
-  tokens: string[];
+  if (existing) return;
+
+  await supabaseAdmin.from("device_tokens").insert({
+    user_id: userId,
+    token,
+    is_active: true,
+  });
 }
 
-const userTokensStore = new Map<string, string[]>();
-
-export function registerDeviceToken(userId: string, token: string): void {
-  const existing = userTokensStore.get(userId) || [];
-  if (!existing.includes(token)) {
-    existing.push(token);
-    userTokensStore.set(userId, existing);
-  }
+export async function removeDeviceToken(userId: string, token: string): Promise<void> {
+  await supabaseAdmin
+    .from("device_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("token", token);
 }
 
-export function removeDeviceToken(userId: string, token: string): void {
-  const existing = userTokensStore.get(userId) || [];
-  userTokensStore.set(
-    userId,
-    existing.filter((t) => t !== token)
-  );
-}
+export async function getUserTokens(userId: string): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("device_tokens")
+    .select("token")
+    .eq("user_id", userId)
+    .eq("is_active", true);
 
-export function getUserTokens(userId: string): string[] {
-  return userTokensStore.get(userId) || [];
+  return data?.map((row) => row.token) || [];
 }
 
 export async function processNewProperty(
@@ -52,7 +59,7 @@ export async function processNewProperty(
   notifications: NotificationLog[];
 }> {
   const parsed = parseProperty(property, rawItem);
-  const activeFilters = getActiveFilters();
+  const activeFilters = await getActiveFilters();
   const matches = matchPropertyAgainstAllFilters(parsed, activeFilters);
 
   const notifications: NotificationLog[] = [];
@@ -61,10 +68,10 @@ export async function processNewProperty(
     const filter = activeFilters.find((f) => f.id === match.filterId);
     if (!filter) continue;
 
-    const tokens = getUserTokens(filter.userId);
+    const tokens = await getUserTokens(filter.userId);
 
     if (tokens.length === 0) {
-      notifications.push({
+      const log: NotificationLog = {
         id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         propertyId: parsed.id,
         filterId: filter.id,
@@ -72,6 +79,16 @@ export async function processNewProperty(
         userId: filter.userId,
         status: "no-token",
         timestamp: new Date().toISOString(),
+      };
+      notifications.push(log);
+      await supabaseAdmin.from("notification_logs").insert({
+        id: log.id,
+        property_id: log.propertyId,
+        filter_id: log.filterId,
+        filter_name: log.filterName,
+        user_id: log.userId,
+        status: log.status,
+        sent_at: log.timestamp,
       });
       continue;
     }
@@ -93,7 +110,7 @@ export async function processNewProperty(
       filter.name
     );
 
-    notifications.push({
+    const log: NotificationLog = {
       id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       propertyId: parsed.id,
       filterId: filter.id,
@@ -101,10 +118,19 @@ export async function processNewProperty(
       userId: filter.userId,
       status: result.success > 0 ? "sent" : "failed",
       timestamp: new Date().toISOString(),
+    };
+    notifications.push(log);
+
+    await supabaseAdmin.from("notification_logs").insert({
+      id: log.id,
+      property_id: log.propertyId,
+      filter_id: log.filterId,
+      filter_name: log.filterName,
+      user_id: log.userId,
+      status: log.status,
+      sent_at: log.timestamp,
     });
   }
-
-  notificationLogs.push(...notifications);
 
   return { parsed, matches, notifications };
 }
@@ -160,13 +186,29 @@ export async function processBatchProperties(
   };
 }
 
-export function getNotificationLogs(
+export async function getNotificationLogs(
   filterId?: string,
   limit: number = 50
-): NotificationLog[] {
-  let logs = notificationLogs;
+): Promise<NotificationLog[]> {
+  let query = supabaseAdmin
+    .from("notification_logs")
+    .select("*")
+    .order("sent_at", { ascending: false })
+    .limit(limit);
+
   if (filterId) {
-    logs = logs.filter((l) => l.filterId === filterId);
+    query = query.eq("filter_id", filterId);
   }
-  return logs.slice(-limit);
+
+  const { data } = await query;
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    propertyId: row.property_id,
+    filterId: row.filter_id,
+    filterName: row.filter_name,
+    userId: row.user_id,
+    status: row.status,
+    timestamp: row.sent_at,
+  }));
 }

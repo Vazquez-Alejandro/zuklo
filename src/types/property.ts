@@ -41,6 +41,7 @@ export interface PortalConfig {
   actorId: string;
   urlPatterns: RegExp[];
   inputMapper: (url: string) => Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   outputMapper: (item: Record<string, any>) => Partial<NormalizedProperty>;
 }
 

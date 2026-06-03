@@ -1,3 +1,5 @@
+import { supabaseAdmin } from "./supabase";
+
 export interface Contract {
   id: string;
   userId: string;
@@ -81,86 +83,136 @@ export type UpdateContractInput = Partial<CreateContractInput> & {
   metadata?: Partial<Contract["metadata"]>;
 };
 
-const contractsStore = new Map<string, Contract>();
-
-export function createContract(input: CreateContractInput): Contract {
-  const now = new Date().toISOString();
-  const contract: Contract = {
-    id: `contract-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    userId: input.userId,
-    propertyId: input.propertyId,
-    landlord: input.landlord,
-    property: input.property,
-    financials: input.financials,
-    terms: input.terms,
-    indexation: input.indexation,
-    adjustments: [],
-    status: "pending",
+function mapRowToContract(row: Record<string, unknown>): Contract {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    propertyId: row.property_id as string,
+    landlord: row.landlord as Contract["landlord"],
+    property: row.property as Contract["property"],
+    financials: row.financials as Contract["financials"],
+    terms: row.terms as Contract["terms"],
+    indexation: row.indexation as Contract["indexation"],
+    adjustments: (row.adjustments as Contract["adjustments"]) ?? [],
+    status: row.status as Contract["status"],
     metadata: {
-      createdAt: now,
-      updatedAt: now,
-      signedAt: null,
-      contractDocumentUrl: null,
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+      signedAt: (row.signed_at as string) ?? null,
+      contractDocumentUrl: (row.contract_document_url as string) ?? null,
     },
   };
-
-  contractsStore.set(contract.id, contract);
-  return contract;
 }
 
-export function updateContract(
+export async function createContract(input: CreateContractInput): Promise<Contract> {
+  const { data, error } = await supabaseAdmin
+    .from("contracts")
+    .insert({
+      user_id: input.userId,
+      property_id: input.propertyId,
+      landlord: input.landlord,
+      property: input.property,
+      financials: input.financials,
+      terms: input.terms,
+      indexation: input.indexation,
+      adjustments: [],
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapRowToContract(data);
+}
+
+export async function updateContract(
   id: string,
   input: UpdateContractInput
-): Contract | null {
-  const existing = contractsStore.get(id);
-  if (!existing) return null;
+): Promise<Contract | null> {
+  const updateFields: Record<string, unknown> = {};
 
-  const updated: Contract = {
-    ...existing,
-    ...input,
-    landlord: input.landlord || existing.landlord,
-    property: input.property || existing.property,
-    financials: input.financials || existing.financials,
-    terms: input.terms || existing.terms,
-    indexation: input.indexation || existing.indexation,
-    metadata: {
-      ...existing.metadata,
-      ...input.metadata,
-      updatedAt: new Date().toISOString(),
-    },
-  };
+  if (input.userId !== undefined) updateFields.user_id = input.userId;
+  if (input.propertyId !== undefined) updateFields.property_id = input.propertyId;
+  if (input.landlord !== undefined) updateFields.landlord = input.landlord;
+  if (input.property !== undefined) updateFields.property = input.property;
+  if (input.financials !== undefined) updateFields.financials = input.financials;
+  if (input.terms !== undefined) updateFields.terms = input.terms;
+  if (input.indexation !== undefined) updateFields.indexation = input.indexation;
+  if (input.metadata?.signedAt !== undefined) updateFields.signed_at = input.metadata.signedAt;
+  if (input.metadata?.contractDocumentUrl !== undefined) updateFields.contract_document_url = input.metadata.contractDocumentUrl;
 
-  contractsStore.set(id, updated);
-  return updated;
+  if (Object.keys(updateFields).length === 0) {
+    return getContract(id);
+  }
+
+  updateFields.updated_at = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from("contracts")
+    .update(updateFields)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return null;
+  return mapRowToContract(data);
 }
 
-export function getContract(id: string): Contract | null {
-  return contractsStore.get(id) || null;
+export async function getContract(id: string): Promise<Contract | null> {
+  const { data, error } = await supabaseAdmin
+    .from("contracts")
+    .select()
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+  return mapRowToContract(data);
 }
 
-export function getContractsByUser(userId: string): Contract[] {
-  return Array.from(contractsStore.values()).filter((c) => c.userId === userId);
+export async function getContractsByUser(userId: string): Promise<Contract[]> {
+  const { data, error } = await supabaseAdmin
+    .from("contracts")
+    .select()
+    .eq("user_id", userId);
+
+  if (error || !data) return [];
+  return data.map(mapRowToContract);
 }
 
-export function getActiveContracts(): Contract[] {
-  return Array.from(contractsStore.values()).filter(
-    (c) => c.status === "active"
-  );
+export async function getActiveContracts(): Promise<Contract[]> {
+  const { data, error } = await supabaseAdmin
+    .from("contracts")
+    .select()
+    .eq("status", "active");
+
+  if (error || !data) return [];
+  return data.map(mapRowToContract);
 }
 
-export function deleteContract(id: string): boolean {
-  return contractsStore.delete(id);
+export async function deleteContract(id: string): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from("contracts")
+    .delete()
+    .eq("id", id);
+
+  return !error;
 }
 
-export function activateContract(id: string): Contract | null {
-  const contract = contractsStore.get(id);
-  if (!contract) return null;
+export async function activateContract(id: string): Promise<Contract | null> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("contracts")
+    .update({
+      status: "active",
+      signed_at: now,
+      updated_at: now,
+    })
+    .eq("id", id)
+    .select()
+    .single();
 
-  contract.status = "active";
-  contract.metadata.signedAt = new Date().toISOString();
-  contract.metadata.updatedAt = new Date().toISOString();
-
-  return contract;
+  if (error || !data) return null;
+  return mapRowToContract(data);
 }
 
 export function getContractSummary(contract: Contract): {

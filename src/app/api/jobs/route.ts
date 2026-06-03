@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/supabase";
 import {
   scrapingQueue,
   scheduleRecurringScrape,
@@ -8,6 +9,7 @@ import { getAllPortals } from "@/lib/apify";
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request);
     const body = await request.json();
     const { action, portal, intervalMinutes } = body;
 
@@ -52,7 +54,10 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
     }
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -60,35 +65,47 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
-  const jobs = await scrapingQueue.getJobs(
-    ["waiting", "active", "completed", "failed"],
-    0,
-    20
-  );
+export async function GET(request: NextRequest) {
+  try {
+    await requireAuth(request);
 
-  const schedulers = await scrapingQueue.getJobSchedulers();
+    const jobs = await scrapingQueue.getJobs(
+      ["waiting", "active", "completed", "failed"],
+      0,
+      20
+    );
 
-  const portals = getAllPortals().map((p) => ({
-    name: p.name,
-    slug: p.slug,
-  }));
+    const schedulers = await scrapingQueue.getJobSchedulers();
 
-  return NextResponse.json({
-    jobs: jobs.map((job) => ({
-      id: job.id,
-      name: job.name,
-      data: job.data,
-      progress: job.progress,
-      status: job.progress ? "completed" : "active",
-      timestamp: job.timestamp,
-    })),
-    schedulers: schedulers.map((s) => ({
-      id: s.id,
-      name: s.name,
-      pattern: s.pattern,
-      every: s.every,
-    })),
-    portals,
-  });
+    const portals = getAllPortals().map((p) => ({
+      name: p.name,
+      slug: p.slug,
+    }));
+
+    return NextResponse.json({
+      jobs: jobs.map((job) => ({
+        id: job.id,
+        name: job.name,
+        data: job.data,
+        progress: job.progress,
+        status: job.progress ? "completed" : "active",
+        timestamp: job.timestamp,
+      })),
+      schedulers: schedulers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        pattern: s.pattern,
+        every: s.every,
+      })),
+      portals,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

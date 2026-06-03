@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/supabase";
 import {
   createContract,
   getContractsByUser,
@@ -11,55 +12,54 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
-    const { userId } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
-    }
-
-    const contract = createContract(body);
+    const contract = await createContract({ ...body, userId: user.id });
     const summary = getContractSummary(contract);
 
     return NextResponse.json({ contract, summary }, { status: 201 });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
     const contractId = searchParams.get("contractId");
 
     if (contractId) {
-      const contract = getContract(contractId);
-      if (!contract) {
+      const contract = await getContract(contractId);
+      if (!contract || contract.userId !== user.id) {
         return NextResponse.json({ error: "Contract not found" }, { status: 404 });
       }
       const summary = getContractSummary(contract);
       return NextResponse.json({ contract, summary });
     }
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
-    }
-
-    const contracts = getContractsByUser(userId);
+    const contracts = await getContractsByUser(user.id);
     const contractsWithSummary = contracts.map((c) => ({
       contract: c,
       summary: getContractSummary(c),
     }));
 
     return NextResponse.json({ contracts: contractsWithSummary });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const { contractId, action, ...updateData } = body;
 
@@ -67,27 +67,36 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "contractId is required" }, { status: 400 });
     }
 
+    const existing = await getContract(contractId);
+    if (!existing || existing.userId !== user.id) {
+      return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+    }
+
     if (action === "activate") {
-      const contract = activateContract(contractId);
+      const contract = await activateContract(contractId);
       if (!contract) {
         return NextResponse.json({ error: "Contract not found" }, { status: 404 });
       }
       return NextResponse.json({ contract, summary: getContractSummary(contract) });
     }
 
-    const contract = updateContract(contractId, updateData);
+    const contract = await updateContract(contractId, updateData);
     if (!contract) {
       return NextResponse.json({ error: "Contract not found" }, { status: 404 });
     }
 
     return NextResponse.json({ contract, summary: getContractSummary(contract) });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
 
@@ -95,13 +104,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "contractId is required" }, { status: 400 });
     }
 
-    const deleted = deleteContract(contractId);
+    const existing = await getContract(contractId);
+    if (!existing || existing.userId !== user.id) {
+      return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+    }
+
+    const deleted = await deleteContract(contractId);
     if (!deleted) {
       return NextResponse.json({ error: "Contract not found" }, { status: 404 });
     }
 
     return NextResponse.json({ deleted: true });
-  } catch (error) {
+  } catch (e) {
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
