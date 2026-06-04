@@ -84,12 +84,35 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-3">10. Cambios en esta política</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">10. Cookies y tecnologías de rastreo</h2>
+            <p>
+              Zuklo utiliza cookies y tecnologías similares para mejorar la experiencia del usuario.
+              Las cookies son pequeños archivos que se almacenan en su dispositivo cuando visita nuestra plataforma.
+            </p>
+            <p className="mt-2"><strong className="text-white">Tipos de cookies utilizadas:</strong></p>
+            <ul className="list-disc list-inside space-y-1 ml-4">
+              <li><strong className="text-emerald-400">Cookies esenciales:</strong> necesarias para el funcionamiento de la plataforma (autenticación, preferencias de sesión). No se pueden desactivar.</li>
+              <li><strong className="text-emerald-400">Cookies de funcionalidad:</strong> permiten recordar sus preferencias (tema de interfaz, filtros guardados) para ofrecer una experiencia personalizada.</li>
+              <li><strong className="text-emerald-400">Cookies de localStorage:</strong> utilizadas para almacenar su preferencia de consentimiento de cookies.</li>
+            </ul>
+            <p className="mt-2"><strong className="text-white">Gestión del consentimiento:</strong></p>
+            <ul className="list-disc list-inside space-y-1 ml-4">
+              <li>Al visitar Zuklo por primera vez, se le solicitará su consentimiento para el uso de cookies no esenciales a través de un banner informativo.</li>
+              <li>Puede retirar su consentimiento en cualquier momento eliminando las cookies desde la configuración de su navegador.</li>
+              <li>La eliminación de cookies puede afectar algunas funcionalidades del Servicio.</li>
+            </ul>
+            <p className="mt-2">
+              No utilizamos cookies de rastreo publicitario ni compartimos datos de navegación con terceros con fines publicitarios.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-white mb-3">11. Cambios en esta política</h2>
             <p>Nos reservamos el derecho de modificar esta política. Los cambios serán notificados a través del Servicio o por correo electrónico.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-3">11. Contacto</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">12. Contacto</h2>
             <p>Para consultas sobre privacidad: <span className="text-emerald-400">privacidad@zuklo.com</span></p>
             <p>Para ejercer sus derechos bajo la Ley 25.326: <span className="text-emerald-400">derechos@zuklo.com</span></p>
           </section>

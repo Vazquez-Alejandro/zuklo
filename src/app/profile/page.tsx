@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 interface Profile {
   id: string;
@@ -93,6 +94,7 @@ const emptyProfile = {
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [summary, setSummary] = useState<ProfileSummary | null>(null);
   const [form, setForm] = useState(emptyProfile);
@@ -101,6 +103,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; email?: string; dni?: string }>({});
 
   useEffect(() => {
     if (!user) return;
@@ -130,7 +133,21 @@ export default function ProfilePage() {
     load();
   }, [user]);
 
+  function validate(): boolean {
+    const errs: { firstName?: string; email?: string; dni?: string } = {};
+    if (!form.personalInfo.firstName.trim()) errs.firstName = "El nombre es requerido";
+    if (form.personalInfo.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.personalInfo.email)) {
+      errs.email = "Ingresá un email válido";
+    }
+    if (form.personalInfo.dni && !/^\d{7,8}$/.test(form.personalInfo.dni)) {
+      errs.dni = "El DNI debe tener 7 u 8 dígitos";
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function handleSave() {
+    if (!validate()) return;
     setSaving(true);
     setError("");
     setSuccess("");
@@ -154,8 +171,10 @@ export default function ProfilePage() {
       setSummary(data.summary);
       setEditing(false);
       setSuccess("Perfil guardado correctamente");
+      showToast("Perfil guardado correctamente", "success");
     } catch {
       setError("Error de conexion");
+      showToast("Error de conexión", "error");
     } finally {
       setSaving(false);
     }
@@ -172,9 +191,13 @@ export default function ProfilePage() {
         setForm(emptyProfile);
         setEditing(false);
         setSuccess("Perfil eliminado");
+        showToast("Perfil eliminado", "success");
+      } else {
+        showToast("Error al eliminar el perfil", "error");
       }
     } catch {
       setError("Error al eliminar el perfil");
+      showToast("Error al eliminar el perfil", "error");
     }
   }
 
@@ -309,21 +332,33 @@ export default function ProfilePage() {
             {/* Personal Info */}
             <Section title="Datos personales">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field
-                  label="Nombre"
-                  value={form.personalInfo.firstName}
-                  onChange={(v) => updateField("personalInfo", "firstName", v)}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Nombre</label>
+                  <input
+                    type="text"
+                    value={form.personalInfo.firstName}
+                    onChange={(e) => { updateField("personalInfo", "firstName", e.target.value); setFieldErrors((p) => ({ ...p, firstName: undefined })); }}
+                    placeholder="Tu nombre"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {fieldErrors.firstName && <p className="text-red-400 text-sm mt-1">{fieldErrors.firstName}</p>}
+                </div>
                 <Field
                   label="Apellido"
                   value={form.personalInfo.lastName}
                   onChange={(v) => updateField("personalInfo", "lastName", v)}
                 />
-                <Field
-                  label="DNI"
-                  value={form.personalInfo.dni}
-                  onChange={(v) => updateField("personalInfo", "dni", v)}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">DNI</label>
+                  <input
+                    type="text"
+                    value={form.personalInfo.dni}
+                    onChange={(e) => { updateField("personalInfo", "dni", e.target.value); setFieldErrors((p) => ({ ...p, dni: undefined })); }}
+                    placeholder="12345678"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {fieldErrors.dni && <p className="text-red-400 text-sm mt-1">{fieldErrors.dni}</p>}
+                </div>
                 <Field
                   label="CUIL"
                   value={form.personalInfo.cuil}
@@ -358,12 +393,17 @@ export default function ProfilePage() {
                   value={form.personalInfo.phone}
                   onChange={(v) => updateField("personalInfo", "phone", v)}
                 />
-                <Field
-                  label="Email"
-                  type="email"
-                  value={form.personalInfo.email}
-                  onChange={(v) => updateField("personalInfo", "email", v)}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    value={form.personalInfo.email}
+                    onChange={(e) => { updateField("personalInfo", "email", e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
+                    placeholder="tu@email.com"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {fieldErrors.email && <p className="text-red-400 text-sm mt-1">{fieldErrors.email}</p>}
+                </div>
                 <Field
                   label="Dirección actual"
                   value={form.personalInfo.currentAddress}

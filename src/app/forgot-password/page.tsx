@@ -3,30 +3,49 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 export default function ForgotPasswordPage() {
   const { forgotPassword } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string }>({});
+
+  function validate(): boolean {
+    const errs: { email?: string } = {};
+    if (!email) {
+      errs.email = "El email es requerido";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errs.email = "Ingresá un email válido";
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setMessage("");
+    if (!validate()) return;
     setLoading(true);
 
     const result = await forgotPassword(email);
 
     if (result.error) {
       setError(result.error);
+      showToast(result.error, "error");
       setLoading(false);
       return;
     }
 
     if (result.message) {
       setMessage(result.message);
+      showToast(result.message, "success");
+    } else {
+      showToast("Email de recuperación enviado", "success");
     }
 
     setLoading(false);
@@ -65,10 +84,11 @@ export default function ForgotPasswordPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setFieldErrors({ email: undefined }); }}
                 placeholder="tu@email.com"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.email && <p className="text-red-400 text-sm mt-1">{fieldErrors.email}</p>}
             </div>
 
             <button

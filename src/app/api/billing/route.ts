@@ -11,16 +11,26 @@ import {
 } from "@/lib/stripe";
 import { getUserPlan, getUserUsage, checkFeatureAccess, getPlanLimitsSummary } from "@/lib/monetization";
 import { requireAuth } from "@/lib/supabase";
+import { rateLimit } from "@/lib/rate-limit";
+import { logRequest } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
   try {
     const user = await requireAuth(request);
+    const rl = rateLimit(`billing:post:${user.id}`, 10, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    }
+
     const body = await request.json();
     const { action, planId } = body;
 
     switch (action) {
       case "checkout": {
         if (!planId || !PLANS[planId as PlanId]) {
+          const duration = Date.now() - start;
+          logRequest("POST", "/api/billing", 400, duration, user.id);
           return NextResponse.json(
             { error: "Invalid plan ID" },
             { status: 400 }
@@ -29,6 +39,8 @@ export async function POST(request: NextRequest) {
 
         const plan = PLANS[planId as PlanId];
         if (!plan.stripePriceId) {
+          const duration = Date.now() - start;
+          logRequest("POST", "/api/billing", 400, duration, user.id);
           return NextResponse.json(
             { error: "This plan cannot be purchased" },
             { status: 400 }
@@ -52,6 +64,8 @@ export async function POST(request: NextRequest) {
           { userId: user.id, planId }
         );
 
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/billing", 200, duration, user.id);
         return NextResponse.json({
           sessionId: session.id,
           url: session.url,
@@ -61,6 +75,8 @@ export async function POST(request: NextRequest) {
       case "portal": {
         const customer = await getStripeCustomerByEmail(user.email!);
         if (!customer) {
+          const duration = Date.now() - start;
+          logRequest("POST", "/api/billing", 404, duration, user.id);
           return NextResponse.json(
             { error: "No billing account found" },
             { status: 404 }
@@ -72,6 +88,8 @@ export async function POST(request: NextRequest) {
           `${process.env.NEXT_PUBLIC_APP_URL}/billing`
         );
 
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/billing", 200, duration, user.id);
         return NextResponse.json({
           url: session.url,
         });
@@ -80,6 +98,8 @@ export async function POST(request: NextRequest) {
       case "cancel": {
         const currentPlan = await getUserPlan(user.id);
         if (currentPlan === "free") {
+          const duration = Date.now() - start;
+          logRequest("POST", "/api/billing", 400, duration, user.id);
           return NextResponse.json(
             { error: "No active subscription to cancel" },
             { status: 400 }
@@ -91,6 +111,8 @@ export async function POST(request: NextRequest) {
         );
 
         if (subscriptions.data.length === 0) {
+          const duration = Date.now() - start;
+          logRequest("POST", "/api/billing", 404, duration, user.id);
           return NextResponse.json(
             { error: "No active subscription found" },
             { status: 404 }
@@ -99,6 +121,8 @@ export async function POST(request: NextRequest) {
 
         await cancelSubscription(subscriptions.data[0].id);
 
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/billing", 200, duration, user.id);
         return NextResponse.json({
           canceled: true,
           message: "Subscription will be canceled at the end of the billing period",
@@ -106,6 +130,8 @@ export async function POST(request: NextRequest) {
       }
 
       default:
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/billing", 400, duration, user.id);
         return NextResponse.json(
           { error: "Unknown action" },
           { status: 400 }
@@ -113,9 +139,13 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: unknown) {
     if (error instanceof Error && error.message === "Unauthorized") {
+      const duration = Date.now() - start;
+      logRequest("POST", "/api/billing", 401, duration);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("Billing error:", error);
+    const duration = Date.now() - start;
+    logRequest("POST", "/api/billing", 500, duration);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -124,14 +154,21 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const start = Date.now();
   try {
     const user = await requireAuth(request);
+    const rl = rateLimit(`billing:get:${user.id}`, 100, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    }
 
     const planId = await getUserPlan(user.id);
     const usage = await getUserUsage(user.id);
     const features = await checkFeatureAccess(user.id, "maxSearchAlerts");
     const limitsSummary = getPlanLimitsSummary(planId);
 
+    const duration = Date.now() - start;
+    logRequest("GET", "/api/billing", 200, duration, user.id);
     return NextResponse.json({
       plan: limitsSummary,
       usage: {
@@ -148,8 +185,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     if (error instanceof Error && error.message === "Unauthorized") {
+      const duration = Date.now() - start;
+      logRequest("GET", "/api/billing", 401, duration);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const duration = Date.now() - start;
+    logRequest("GET", "/api/billing", 500, duration);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

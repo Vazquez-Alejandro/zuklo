@@ -90,21 +90,39 @@ npm run test:watch  # watch mode
 - [x] Páginas legales (Términos y Condiciones, Política de Privacidad - Ley 25.326)
 - [x] 87 unit tests pasando (dedup, index-calculator, parser, matcher)
 - [x] Vitest configurado con alias @
+- [x] Landing page pública (/) con hero, features, pricing
+- [x] Rate limiting integrado en 13 API routes (por IP y usuario)
+- [x] Structured logger (logRequest) integrado en 13 API routes
+- [x] Loading states (loading.tsx) para 7 pages
+- [x] Toast notifications (ToastProvider + useToast hook)
+- [x] Form validation completa en 8 formularios
+- [x] Empty states, skeleton loaders, confirm dialog components
+- [x] CSRF protection (src/lib/csrf.ts)
+- [x] CSP headers + security headers (next.config.ts)
+- [x] Input sanitization (src/lib/sanitize.ts)
+- [x] Audit log (src/lib/audit-log.ts + tabla audit_logs)
+- [x] IPC/ICL conectado a fuentes reales con fallback (src/lib/index-fetcher.ts)
+- [x] Health check endpoint (/api/health)
+- [x] API docs endpoint (/api/docs)
+- [x] CI/CD pipeline (GitHub Actions)
+- [x] Database backup script (scripts/backup.sh)
+- [x] Cookie consent banner
+- [x] Página ARCO (/arco)
+- [x] Términos de scraping agregados en /terms
+- [x] Política de cookies agregada en /privacy
+- [x] Supabase self-hosted Docker setup (docker/supabase/)
 
 ### 🔲 Pendiente - Configuración Externa (requiere servicios)
-- [ ] Configurar proyecto Supabase (crear tablas, copiar credenciales a .env.local)
-- [ ] Ejecutar migraciones SQL en Supabase Dashboard
+- [ ] Levantar Supabase Docker: `bash docker/supabase/setup.sh`
 - [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs
 - [ ] Configurar Stripe Webhooks en producción (endpoint: /api/webhook)
 - [ ] Configurar Redis para producción (Upstash o similar)
 - [ ] Configurar Firebase Cloud Messaging (proyecto + vapid key)
 - [ ] Crear cuenta Apify y configurar actors
 - [ ] Deploy a Vercel (dominio, SSL, env vars en producción)
+- [ ] Instalar Sentry: `npm install @sentry/nextjs` y recrear configs
 
 ### 🔲 Pendiente - Funcionalidad
-- [ ] Conectar IPC/ICL a fuente real de datos (actualmente hardcoded May 2026)
-- [ ] Integrar rate-limit.ts en API routes (importar y aplicar)
-- [ ] Integrar logger.ts en API routes (logRequest en cada endpoint)
 - [ ] Webhook handler funcional para Stripe (suscripciones reales)
 - [ ] Push notifications end-to-end (FCM -> BullMQ -> envío)
 - [ ] Scraping real con Apify (configurar actors, verificar output)
@@ -113,34 +131,15 @@ npm run test:watch  # watch mode
 - [ ] Filtros guardados con límite según plan (Free: 2, Premium: ilimitado)
 - [ ] Alertas con límite según plan (Free: 2, Premium: ilimitado)
 - [ ] Dashboard del inquilino: estadísticas, propiedades vistas, alerts activas
+- [ ] Conectar audit_logs a tabla real (requiere migración 005 en DB)
 
 ### 🔲 Pendiente - UX/UI
-- [ ] Página de carga (loading.tsx) para cada sección
-- [ ] Form validation completa (todos los formularios)
-- [ ] Toast notifications para feedback de usuario
-- [ ] Confirmación antes de acciones destructivas (delete, cancel subscription)
-- [ ] Empty states para listados vacíos
-- [ ] Skeleton loaders
 - [ ] Responsive testing completo (mobile, tablet, desktop)
+- [ ] Skeleton loaders más detallados para cada page
 
 ### 🔲 Pendiente - Seguridad
-- [ ] Rate limiting en API routes (ya creado, falta integrar)
-- [ ] CSRF protection
-- [ ] Content Security Policy headers
-- [ ] Input sanitization en todos los formularios
-- [ ] Audit log para acciones sensibles (delete account, change plan)
-- [ ] RLS policies a nivel de usuario (actualmente solo service_role)
+- [ ] RLS policies a nivel de usuario (unificar TEXT/UUID user_id)
 
 ### 🔲 Pendiente - DevOps / Infra
-- [ ] CI/CD pipeline (GitHub Actions: lint + test + build)
-- [ ] Error monitoring (Sentry o similar)
 - [ ] Analytics (Vercel Analytics o Plausible)
-- [ ] Backups automáticos de Supabase
-- [ ] Health check endpoint (/api/health)
-- [ ] Documentation API (OpenAPI/Swagger)
-
-### 🔲 Pendiente - Legal / Compliance
-- [ ] Páginas legales ya creadas (/terms, /privacy) - verificar que cumplan Ley 25.326
-- [ ] Banner de cookies / consentimiento tracking
-- [ ] Formulario de ejercer derechos ARCO (acceso, rectificación, cancelación, oposición)
-- [ ] Términos específicos para scraping de portales inmobiliarios
+- [ ] Backups automáticos de Supabase (cron con scripts/backup.sh)

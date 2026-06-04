@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 interface Filter {
   id: string;
@@ -47,6 +48,7 @@ const emptyForm: FilterForm = {
 
 export default function AlertsPage() {
   useAuth();
+  const { showToast } = useToast();
   const [filters, setFilters] = useState<Filter[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -54,6 +56,7 @@ export default function AlertsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; price?: string }>({});
 
   useEffect(() => {
     async function fetchFilters() {
@@ -76,8 +79,21 @@ export default function AlertsPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function validateForm(): boolean {
+    const errs: { name?: string; price?: string } = {};
+    if (!form.name.trim()) errs.name = "El nombre es requerido";
+    const min = form.priceMin ? Number(form.priceMin) : 0;
+    const max = form.priceMax ? Number(form.priceMax) : 0;
+    if (min > 0 && max > 0 && min > max) {
+      errs.price = "El precio mínimo no puede superar el máximo";
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (!validateForm()) return;
     setSaving(true);
     setError("");
     setSuccess("");
@@ -122,8 +138,10 @@ export default function AlertsPage() {
       setForm(emptyForm);
       setShowForm(false);
       setSuccess("Filtro creado correctamente");
+      showToast("Filtro creado correctamente", "success");
     } catch {
       setError("Error de conexion");
+      showToast("Error de conexión", "error");
     } finally {
       setSaving(false);
     }
@@ -139,9 +157,12 @@ export default function AlertsPage() {
 
       if (res.ok) {
         setFilters((prev) => prev.filter((f) => f.id !== filterId));
+        showToast("Filtro eliminado", "success");
+      } else {
+        showToast("Error al eliminar filtro", "error");
       }
     } catch {
-      // silent
+      showToast("Error de conexión", "error");
     }
   }
 
@@ -186,10 +207,11 @@ export default function AlertsPage() {
                 type="text"
                 required
                 value={form.name}
-                onChange={(e) => updateField("name", e.target.value)}
+                onChange={(e) => { updateField("name", e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })); }}
                 placeholder="Ej: Depto Palermo"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.name && <p className="text-red-400 text-sm mt-1">{fieldErrors.name}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -199,7 +221,7 @@ export default function AlertsPage() {
                   type="number"
                   min="0"
                   value={form.priceMin}
-                  onChange={(e) => updateField("priceMin", e.target.value)}
+                  onChange={(e) => { updateField("priceMin", e.target.value); setFieldErrors((p) => ({ ...p, price: undefined })); }}
                   placeholder="0"
                   className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
                 />
@@ -210,10 +232,11 @@ export default function AlertsPage() {
                   type="number"
                   min="0"
                   value={form.priceMax}
-                  onChange={(e) => updateField("priceMax", e.target.value)}
+                  onChange={(e) => { updateField("priceMax", e.target.value); setFieldErrors((p) => ({ ...p, price: undefined })); }}
                   placeholder="Sin límite"
                   className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
                 />
+                {fieldErrors.price && <p className="text-red-400 text-sm mt-1">{fieldErrors.price}</p>}
               </div>
             </div>
 

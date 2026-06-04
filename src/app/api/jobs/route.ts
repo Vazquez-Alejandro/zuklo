@@ -6,10 +6,18 @@ import {
   addScrapePortalJob,
 } from "@/lib/queue";
 import { getAllPortals } from "@/lib/apify";
+import { rateLimit } from "@/lib/rate-limit";
+import { logRequest } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
+    const rl = rateLimit(`jobs:post:${user.id}`, 10, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    }
+
     const body = await request.json();
     const { action, portal, intervalMinutes } = body;
 
@@ -17,6 +25,8 @@ export async function POST(request: NextRequest) {
       case "start-recurring": {
         const interval = intervalMinutes || 15;
         await scheduleRecurringScrape(interval);
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/jobs", 200, duration, user.id);
         return NextResponse.json({
           status: "scheduled",
           intervalMinutes: interval,
@@ -30,17 +40,23 @@ export async function POST(request: NextRequest) {
             await scrapingQueue.removeJobScheduler(job.id);
           }
         }
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/jobs", 200, duration, user.id);
         return NextResponse.json({ status: "stopped" });
       }
 
       case "scrape-portal": {
         if (!portal) {
+          const duration = Date.now() - start;
+          logRequest("POST", "/api/jobs", 400, duration, user.id);
           return NextResponse.json(
             { error: "Portal slug is required" },
             { status: 400 }
           );
         }
         const job = await addScrapePortalJob(portal);
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/jobs", 200, duration, user.id);
         return NextResponse.json({
           jobId: job.id,
           portal,
@@ -49,6 +65,8 @@ export async function POST(request: NextRequest) {
       }
 
       default:
+        const duration = Date.now() - start;
+        logRequest("POST", "/api/jobs", 400, duration, user.id);
         return NextResponse.json(
           { error: "Unknown action" },
           { status: 400 }
@@ -56,8 +74,12 @@ export async function POST(request: NextRequest) {
     }
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {
+      const duration = Date.now() - start;
+      logRequest("POST", "/api/jobs", 401, duration);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const duration = Date.now() - start;
+    logRequest("POST", "/api/jobs", 500, duration);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -66,8 +88,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const start = Date.now();
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
+    const rl = rateLimit(`jobs:get:${user.id}`, 100, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    }
 
     const jobs = await scrapingQueue.getJobs(
       ["waiting", "active", "completed", "failed"],
@@ -82,6 +109,8 @@ export async function GET(request: NextRequest) {
       slug: p.slug,
     }));
 
+    const duration = Date.now() - start;
+    logRequest("GET", "/api/jobs", 200, duration, user.id);
     return NextResponse.json({
       jobs: jobs.map((job) => ({
         id: job.id,
@@ -101,8 +130,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {
+      const duration = Date.now() - start;
+      logRequest("GET", "/api/jobs", 401, duration);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const duration = Date.now() - start;
+    logRequest("GET", "/api/jobs", 500, duration);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

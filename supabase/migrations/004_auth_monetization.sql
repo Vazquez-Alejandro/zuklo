@@ -199,17 +199,26 @@ CREATE POLICY "Service role can manage maintenance_expenses" ON maintenance_expe
 -- TRIGGERS (auth tables)
 -- =============================================
 
+-- Ensure handle_updated_at function exists (migration 001 defines update_updated_at)
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER set_users_updated_at
   BEFORE UPDATE ON public.users
-  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 CREATE TRIGGER set_subscriptions_updated_at
   BEFORE UPDATE ON public.subscriptions
-  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 CREATE TRIGGER set_user_usage_updated_at
   BEFORE UPDATE ON public.user_usage
-  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- =============================================
 -- Function to auto-create user profile on signup

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 interface ContractSummary {
   daysUntilEnd: number;
@@ -65,6 +66,7 @@ const emptyForm = {
 
 export default function ContractsPage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [contracts, setContracts] = useState<ContractWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -73,6 +75,7 @@ export default function ContractsPage() {
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ landlordName?: string; propertyAddress?: string; monthlyRent?: string }>({});
 
   useEffect(() => {
     if (!user) return;
@@ -94,7 +97,17 @@ export default function ContractsPage() {
     }
   }
 
+  function validateForm(): boolean {
+    const errs: { landlordName?: string; propertyAddress?: string; monthlyRent?: string } = {};
+    if (!form.landlordName.trim()) errs.landlordName = "El nombre del propietario es requerido";
+    if (!form.propertyAddress.trim()) errs.propertyAddress = "La dirección es requerida";
+    if (!form.monthlyRent || form.monthlyRent <= 0) errs.monthlyRent = "El alquiler mensual es requerido";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function handleCreate() {
+    if (!validateForm()) return;
     setSaving(true);
     setError("");
 
@@ -156,8 +169,10 @@ export default function ContractsPage() {
       setShowForm(false);
       setForm(emptyForm);
       fetchContracts();
+      showToast("Contrato creado correctamente", "success");
     } catch {
       setError("Error de conexion");
+      showToast("Error de conexión", "error");
     } finally {
       setSaving(false);
     }
@@ -171,8 +186,10 @@ export default function ContractsPage() {
         body: JSON.stringify({ contractId, action: "activate" }),
       });
       fetchContracts();
+      showToast("Contrato activado", "success");
     } catch {
       setError("Error al activar contrato");
+      showToast("Error al activar contrato", "error");
     }
   }
 
@@ -187,9 +204,13 @@ export default function ContractsPage() {
         );
         setDeleteConfirm(null);
         if (selectedId === contractId) setSelectedId(null);
+        showToast("Contrato eliminado", "success");
+      } else {
+        showToast("Error al eliminar contrato", "error");
       }
     } catch {
       setError("Error al eliminar contrato");
+      showToast("Error al eliminar contrato", "error");
     }
   }
 
@@ -243,12 +264,17 @@ export default function ContractsPage() {
 
             <SectionTitle title="Propiedad">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field
-                  label="Dirección"
-                  value={form.propertyAddress}
-                  onChange={(v) => setForm({ ...form, propertyAddress: v })}
-                  className="md:col-span-2"
-                />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Dirección</label>
+                  <input
+                    type="text"
+                    value={form.propertyAddress}
+                    onChange={(e) => { setForm({ ...form, propertyAddress: e.target.value }); setFieldErrors((p) => ({ ...p, propertyAddress: undefined })); }}
+                    placeholder="Dirección de la propiedad"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {fieldErrors.propertyAddress && <p className="text-red-400 text-sm mt-1">{fieldErrors.propertyAddress}</p>}
+                </div>
                 <Field
                   label="Ciudad"
                   value={form.propertyCity}
@@ -280,11 +306,17 @@ export default function ContractsPage() {
 
             <SectionTitle title="Propietario">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field
-                  label="Nombre"
-                  value={form.landlordName}
-                  onChange={(v) => setForm({ ...form, landlordName: v })}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Nombre</label>
+                  <input
+                    type="text"
+                    value={form.landlordName}
+                    onChange={(e) => { setForm({ ...form, landlordName: e.target.value }); setFieldErrors((p) => ({ ...p, landlordName: undefined })); }}
+                    placeholder="Nombre del propietario"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {fieldErrors.landlordName && <p className="text-red-400 text-sm mt-1">{fieldErrors.landlordName}</p>}
+                </div>
                 <Field
                   label="DNI"
                   value={form.landlordDni}
@@ -305,14 +337,17 @@ export default function ContractsPage() {
 
             <SectionTitle title="Datos financieros">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field
-                  label="Alquiler mensual"
-                  type="number"
-                  value={form.monthlyRent}
-                  onChange={(v) =>
-                    setForm({ ...form, monthlyRent: Number(v) })
-                  }
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Alquiler mensual</label>
+                  <input
+                    type="number"
+                    value={form.monthlyRent}
+                    onChange={(e) => { setForm({ ...form, monthlyRent: Number(e.target.value) }); setFieldErrors((p) => ({ ...p, monthlyRent: undefined })); }}
+                    placeholder="0"
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {fieldErrors.monthlyRent && <p className="text-red-400 text-sm mt-1">{fieldErrors.monthlyRent}</p>}
+                </div>
                 <Field
                   label="Expensas"
                   type="number"

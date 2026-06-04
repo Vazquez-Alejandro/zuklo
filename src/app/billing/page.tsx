@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 import { PLANS, type PlanId } from "@/lib/stripe";
+import { useToast } from "@/components/toast";
 
 interface BillingData {
   plan: {
@@ -45,6 +46,7 @@ function XIcon() {
 
 export default function BillingPage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [billing, setBilling] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,7 +81,8 @@ export default function BillingPage() {
       if (!res.ok) throw new Error(data.error);
       if (data.url) window.location.href = data.url;
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Error al iniciar checkout");
+      const msg = err instanceof Error ? err.message : "Error al iniciar checkout";
+      showToast(msg, "error");
       setActionLoading(null);
     }
   }
@@ -96,7 +99,8 @@ export default function BillingPage() {
       if (!res.ok) throw new Error(data.error);
       if (data.url) window.location.href = data.url;
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Error al abrir portal de facturación");
+      const msg = err instanceof Error ? err.message : "Error al abrir portal de facturación";
+      showToast(msg, "error");
       setActionLoading(null);
     }
   }
@@ -112,11 +116,13 @@ export default function BillingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setShowCancelConfirm(false);
+      showToast("Suscripción cancelada", "success");
       const updated = await fetch("/api/billing");
       const updatedData = await updated.json();
       if (updated.ok) setBilling(updatedData);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Error al cancelar suscripción");
+      const msg = err instanceof Error ? err.message : "Error al cancelar suscripción";
+      showToast(msg, "error");
     } finally {
       setActionLoading(null);
     }

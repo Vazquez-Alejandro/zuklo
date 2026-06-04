@@ -21,108 +21,104 @@ export interface UserUsage {
   filtersCreated: number;
   tenantProfilesCreated: number;
   pdfExportsUsed: number;
-  lastResetAt: string;
+  periodStart: string;
+  periodEnd: string;
 }
 
-const subscriptionsStore = new Map<string, UserSubscription>();
-const usageStore = new Map<string, UserUsage>();
+function getCurrentPeriod(): { start: string; end: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  return { start, end };
+}
 
 export async function getUserSubscription(
   userId: string
 ): Promise<UserSubscription | null> {
-  const local = subscriptionsStore.get(userId);
-  if (local) return local;
-
   const { data } = await supabaseAdmin
-    .from("user_subscriptions")
+    .from("subscriptions")
     .select("*")
     .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .single();
 
-  if (data) {
-    const sub: UserSubscription = {
-      id: data.id,
-      userId: data.user_id,
-      stripeCustomerId: data.stripe_customer_id,
-      stripeSubscriptionId: data.stripe_subscription_id,
-      planId: data.plan_id,
-      status: data.status,
-      currentPeriodStart: data.current_period_start,
-      currentPeriodEnd: data.current_period_end,
-      cancelAtPeriodEnd: data.cancel_at_period_end,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-    subscriptionsStore.set(userId, sub);
-    return sub;
-  }
+  if (!data) return null;
 
-  return null;
+  return {
+    id: data.id,
+    userId: data.user_id,
+    stripeCustomerId: data.stripe_customer_id,
+    stripeSubscriptionId: data.stripe_subscription_id,
+    planId: data.plan_id,
+    status: data.status,
+    currentPeriodStart: data.current_period_start,
+    currentPeriodEnd: data.current_period_end,
+    cancelAtPeriodEnd: data.cancel_at !== null,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
 export async function getUserUsage(userId: string): Promise<UserUsage> {
-  const local = usageStore.get(userId);
-  if (local) return local;
+  const { start, end } = getCurrentPeriod();
 
   const { data } = await supabaseAdmin
     .from("user_usage")
     .select("*")
     .eq("user_id", userId)
+    .eq("period_start", start)
     .single();
 
   if (data) {
-    const usage: UserUsage = {
+    return {
       userId: data.user_id,
       searchAlertsUsed: data.search_alerts_used,
       filtersCreated: data.filters_created,
       tenantProfilesCreated: data.tenant_profiles_created,
       pdfExportsUsed: data.pdf_exports_used,
-      lastResetAt: data.last_reset_at,
+      periodStart: data.period_start,
+      periodEnd: data.period_end,
     };
-    usageStore.set(userId, usage);
-    return usage;
   }
 
-  const newUsage: UserUsage = {
+  const newUsage = {
+    user_id: userId,
+    period_start: start,
+    period_end: end,
+    search_alerts_used: 0,
+    filters_created: 0,
+    tenant_profiles_created: 0,
+    pdf_exports_used: 0,
+  };
+
+  await supabaseAdmin.from("user_usage").insert(newUsage);
+
+  return {
     userId,
     searchAlertsUsed: 0,
     filtersCreated: 0,
     tenantProfilesCreated: 0,
     pdfExportsUsed: 0,
-    lastResetAt: new Date().toISOString(),
+    periodStart: start,
+    periodEnd: end,
   };
-
-  await supabaseAdmin.from("user_usage").insert({
-    user_id: userId,
-    search_alerts_used: 0,
-    filters_created: 0,
-    tenant_profiles_created: 0,
-    pdf_exports_used: 0,
-    last_reset_at: newUsage.lastResetAt,
-  });
-
-  usageStore.set(userId, newUsage);
-  return newUsage;
 }
 
 export async function incrementUsage(
   userId: string,
-  field: keyof Omit<UserUsage, "userId" | "lastResetAt">
+  field: keyof Omit<UserUsage, "userId" | "periodStart" | "periodEnd">
 ): Promise<UserUsage> {
   const usage = await getUserUsage(userId);
-
-  const updated = {
-    ...usage,
-    [field]: usage[field] + 1,
-  };
+  const newValue = usage[field] + 1;
 
   await supabaseAdmin
     .from("user_usage")
-    .update({ [field]: updated[field] })
-    .eq("user_id", userId);
+    .update({ [field === "searchAlertsUsed" ? "search_alerts_used" : field === "filtersCreated" ? "filters_created" : field === "tenantProfilesCreated" ? "tenant_profiles_created" : "pdf_exports_used"]: newValue })
+    .eq("user_id", userId)
+    .eq("period_start", usage.periodStart);
 
-  usageStore.set(userId, updated);
-  return updated;
+  return { ...usage, [field]: newValue };
 }
 
 export async function createSubscription(
@@ -135,36 +131,36 @@ export async function createSubscription(
   currentPeriodEnd: string
 ): Promise<UserSubscription> {
   const now = new Date().toISOString();
-  const sub: UserSubscription = {
-    id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    userId,
-    stripeCustomerId,
-    stripeSubscriptionId,
-    planId,
-    status,
-    currentPeriodStart,
-    currentPeriodEnd,
+
+  const { data } = await supabaseAdmin
+    .from("subscriptions")
+    .insert({
+      user_id: userId,
+      stripe_customer_id: stripeCustomerId,
+      stripe_subscription_id: stripeSubscriptionId,
+      plan_id: planId,
+      status,
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
+      created_at: now,
+      updated_at: now,
+    })
+    .select()
+    .single();
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    stripeCustomerId: data.stripe_customer_id,
+    stripeSubscriptionId: data.stripe_subscription_id,
+    planId: data.plan_id,
+    status: data.status,
+    currentPeriodStart: data.current_period_start,
+    currentPeriodEnd: data.current_period_end,
     cancelAtPeriodEnd: false,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
   };
-
-  await supabaseAdmin.from("user_subscriptions").insert({
-    id: sub.id,
-    user_id: sub.userId,
-    stripe_customer_id: sub.stripeCustomerId,
-    stripe_subscription_id: sub.stripeSubscriptionId,
-    plan_id: sub.planId,
-    status: sub.status,
-    current_period_start: sub.currentPeriodStart,
-    current_period_end: sub.currentPeriodEnd,
-    cancel_at_period_end: sub.cancelAtPeriodEnd,
-    created_at: sub.createdAt,
-    updated_at: sub.updatedAt,
-  });
-
-  subscriptionsStore.set(userId, sub);
-  return sub;
 }
 
 export async function updateSubscription(
@@ -174,27 +170,37 @@ export async function updateSubscription(
   const existing = await getUserSubscription(userId);
   if (!existing) return null;
 
-  const updated = {
-    ...existing,
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
+  const now = new Date().toISOString();
 
-  await supabaseAdmin
-    .from("user_subscriptions")
+  const { data } = await supabaseAdmin
+    .from("subscriptions")
     .update({
-      plan_id: updated.planId,
-      status: updated.status,
-      stripe_subscription_id: updated.stripeSubscriptionId,
-      current_period_start: updated.currentPeriodStart,
-      current_period_end: updated.currentPeriodEnd,
-      cancel_at_period_end: updated.cancelAtPeriodEnd,
-      updated_at: updated.updatedAt,
+      plan_id: updates.planId,
+      status: updates.status,
+      stripe_subscription_id: updates.stripeSubscriptionId,
+      current_period_start: updates.currentPeriodStart,
+      current_period_end: updates.currentPeriodEnd,
+      updated_at: now,
     })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select()
+    .single();
 
-  subscriptionsStore.set(userId, updated);
-  return updated;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    stripeCustomerId: data.stripe_customer_id,
+    stripeSubscriptionId: data.stripe_subscription_id,
+    planId: data.plan_id,
+    status: data.status,
+    currentPeriodStart: data.current_period_start,
+    currentPeriodEnd: data.current_period_end,
+    cancelAtPeriodEnd: data.cancel_at !== null,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
 export async function getUserPlan(userId: string): Promise<PlanId> {

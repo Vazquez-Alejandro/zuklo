@@ -1,0 +1,40 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Option 1: Deploy to Vercel (recommended for Next.js)
+      # Uncomment and configure after setting up the Vercel CLI integration:
+      #   1. Install Vercel CLI: npm i -g vercel
+      #   2. Run `vercel link` to connect your project
+      #   3. Add VERCEL_TOKEN and VERCEL_ORG_ID to GitHub Secrets
+      - name: Deploy to Vercel
+        if: false
+        run: |
+          npx vercel --yes --prod \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # Option 2: Build and push Docker image (alternative to Vercel)
+      # Uncomment and configure after setting up a container registry:
+      #   1. Create a Dockerfile in the project root
+      #   2. Add registry credentials to GitHub Secrets
+      - name: Build and push Docker image
+        if: false
+        run: |
+          echo "Docker deployment placeholder — create a Dockerfile and configure registry credentials"
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}

@@ -4,28 +4,50 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 export default function LoginPage() {
   const { signIn } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+
+  function validate(): boolean {
+    const errs: { email?: string; password?: string } = {};
+    if (!email) {
+      errs.email = "El email es requerido";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errs.email = "Ingresá un email válido";
+    }
+    if (!password) {
+      errs.password = "La contraseña es requerida";
+    } else if (password.length < 6) {
+      errs.password = "La contraseña debe tener al menos 6 caracteres";
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!validate()) return;
     setLoading(true);
 
     const result = await signIn(email, password);
 
     if (result.error) {
       setError(result.error);
+      showToast(result.error, "error");
       setLoading(false);
       return;
     }
 
+    showToast("Sesión iniciada correctamente", "success");
     router.push("/dashboard");
   }
 
@@ -56,10 +78,11 @@ export default function LoginPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
                 placeholder="tu@email.com"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.email && <p className="text-red-400 text-sm mt-1">{fieldErrors.email}</p>}
             </div>
 
             <div>
@@ -71,10 +94,11 @@ export default function LoginPage() {
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
                 placeholder="••••••••"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.password && <p className="text-red-400 text-sm mt-1">{fieldErrors.password}</p>}
             </div>
 
             <div className="text-right">

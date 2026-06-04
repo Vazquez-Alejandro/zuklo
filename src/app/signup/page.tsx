@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 export default function SignupPage() {
   const { signUp } = useAuth();
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,21 +15,35 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string }>({});
+
+  function validate(): boolean {
+    const errs: { name?: string; email?: string; password?: string; confirmPassword?: string } = {};
+    if (!name.trim()) errs.name = "El nombre es requerido";
+    if (!email) {
+      errs.email = "El email es requerido";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errs.email = "Ingresá un email válido";
+    }
+    if (!password) {
+      errs.password = "La contraseña es requerida";
+    } else if (password.length < 6) {
+      errs.password = "La contraseña debe tener al menos 6 caracteres";
+    }
+    if (!confirmPassword) {
+      errs.confirmPassword = "Confirmá tu contraseña";
+    } else if (password !== confirmPassword) {
+      errs.confirmPassword = "Las contraseñas no coinciden";
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setMessage("");
-
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden");
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
 
@@ -35,12 +51,16 @@ export default function SignupPage() {
 
     if (result.error) {
       setError(result.error);
+      showToast(result.error, "error");
       setLoading(false);
       return;
     }
 
     if (result.message) {
       setMessage(result.message);
+      showToast(result.message, "success");
+    } else {
+      showToast("Cuenta creada correctamente", "success");
     }
 
     setLoading(false);
@@ -79,10 +99,11 @@ export default function SignupPage() {
                 type="text"
                 required
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })); }}
                 placeholder="Tu nombre"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.name && <p className="text-red-400 text-sm mt-1">{fieldErrors.name}</p>}
             </div>
 
             <div>
@@ -94,10 +115,11 @@ export default function SignupPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
                 placeholder="tu@email.com"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.email && <p className="text-red-400 text-sm mt-1">{fieldErrors.email}</p>}
             </div>
 
             <div>
@@ -109,10 +131,11 @@ export default function SignupPage() {
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
                 placeholder="Mínimo 6 caracteres"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.password && <p className="text-red-400 text-sm mt-1">{fieldErrors.password}</p>}
             </div>
 
             <div>
@@ -124,10 +147,11 @@ export default function SignupPage() {
                 type="password"
                 required
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((p) => ({ ...p, confirmPassword: undefined })); }}
                 placeholder="Repetí tu contraseña"
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
               />
+              {fieldErrors.confirmPassword && <p className="text-red-400 text-sm mt-1">{fieldErrors.confirmPassword}</p>}
             </div>
 
             <button

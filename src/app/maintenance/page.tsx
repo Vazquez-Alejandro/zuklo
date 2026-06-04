@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 interface Expense {
   id: string;
@@ -68,6 +69,7 @@ const emptyForm = {
 
 export default function MaintenancePage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [contracts, setContracts] = useState<ContractOption[]>([]);
   const [selectedContractId, setSelectedContractId] = useState("");
@@ -79,6 +81,7 @@ export default function MaintenancePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ description?: string; amount?: string; date?: string }>({});
 
   useEffect(() => {
     if (!user) return;
@@ -140,12 +143,22 @@ export default function MaintenancePage() {
     }
   }
 
+  function validateForm(): boolean {
+    const errs: { description?: string; amount?: string; date?: string } = {};
+    if (!form.description.trim()) errs.description = "La descripción es requerida";
+    if (!form.amount || form.amount <= 0) errs.amount = "El monto es requerido";
+    if (!form.date) errs.date = "La fecha es requerida";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function handleCreate() {
     if (!selectedContractId) {
       setError("Seleccioná un contrato primero");
       return;
     }
 
+    if (!validateForm()) return;
     setSaving(true);
     setError("");
 
@@ -181,8 +194,10 @@ export default function MaintenancePage() {
       setShowForm(false);
       setForm(emptyForm);
       fetchExpenses(selectedContractId);
+      showToast("Gasto creado correctamente", "success");
     } catch {
       setError("Error de conexion");
+      showToast("Error de conexión", "error");
     } finally {
       setSaving(false);
     }
@@ -196,8 +211,10 @@ export default function MaintenancePage() {
         body: JSON.stringify({ expenseId, status }),
       });
       if (selectedContractId) fetchExpenses(selectedContractId);
+      showToast("Estado actualizado", "success");
     } catch {
       setError("Error al actualizar gasto");
+      showToast("Error al actualizar gasto", "error");
     }
   }
 
@@ -210,9 +227,13 @@ export default function MaintenancePage() {
         setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
         setDeleteConfirm(null);
         if (selectedContractId) fetchExpenses(selectedContractId);
+        showToast("Gasto eliminado", "success");
+      } else {
+        showToast("Error al eliminar gasto", "error");
       }
     } catch {
       setError("Error al eliminar gasto");
+      showToast("Error al eliminar gasto", "error");
     }
   }
 
@@ -408,26 +429,34 @@ export default function MaintenancePage() {
                 </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
+                  onChange={(e) => { setForm({ ...form, description: e.target.value }); setFieldErrors((p) => ({ ...p, description: undefined })); }}
                   rows={2}
                   className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors resize-none"
                   placeholder="Descripción del gasto..."
                 />
+                {fieldErrors.description && <p className="text-red-400 text-sm mt-1">{fieldErrors.description}</p>}
               </div>
-              <Field
-                label="Monto"
-                type="number"
-                value={form.amount}
-                onChange={(v) => setForm({ ...form, amount: Number(v) })}
-              />
-              <Field
-                label="Fecha"
-                type="date"
-                value={form.date}
-                onChange={(v) => setForm({ ...form, date: v })}
-              />
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Monto</label>
+                <input
+                  type="number"
+                  value={form.amount}
+                  onChange={(e) => { setForm({ ...form, amount: Number(e.target.value) }); setFieldErrors((p) => ({ ...p, amount: undefined })); }}
+                  placeholder="0"
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                {fieldErrors.amount && <p className="text-red-400 text-sm mt-1">{fieldErrors.amount}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Fecha</label>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => { setForm({ ...form, date: e.target.value }); setFieldErrors((p) => ({ ...p, date: undefined })); }}
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                {fieldErrors.date && <p className="text-red-400 text-sm mt-1">{fieldErrors.date}</p>}
+              </div>
             </div>
 
             <div>

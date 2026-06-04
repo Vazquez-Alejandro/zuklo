@@ -8,8 +8,17 @@ import {
   createSubscription,
   updateSubscription,
 } from "@/lib/monetization";
+import { rateLimit } from "@/lib/rate-limit";
+import { logRequest } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+  const rl = rateLimit(`webhook:post:${ip}`, 100, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   try {
     const body = await request.text();
     const signature = request.headers.get("stripe-signature");
@@ -138,9 +147,13 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
+    const duration = Date.now() - start;
+    logRequest("POST", "/api/webhook", 200, duration);
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
+    const duration = Date.now() - start;
+    logRequest("POST", "/api/webhook", 500, duration);
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 }
@@ -149,6 +162,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const duration = 0;
+  logRequest("GET", "/api/webhook", 200, duration);
   return NextResponse.json({
     message: "Stripe webhook endpoint is active",
     supportedEvents: [

@@ -1,3 +1,5 @@
+import { fetchIndexData } from "./index-fetcher";
+
 export interface IndexValue {
   date: string;
   value: number;
@@ -17,7 +19,7 @@ export interface RentIncreaseResult {
   formula: string;
 }
 
-const IPC_DATA: IndexValue[] = [
+export const IPC_DATA: IndexValue[] = [
   { date: "2024-01", value: 206.4, source: "INDEC" },
   { date: "2024-02", value: 215.8, source: "INDEC" },
   { date: "2024-03", value: 224.1, source: "INDEC" },
@@ -49,7 +51,7 @@ const IPC_DATA: IndexValue[] = [
   { date: "2026-05", value: 460.0, source: "INDEC" },
 ];
 
-const ICL_DATA: IndexValue[] = [
+export const ICL_DATA: IndexValue[] = [
   { date: "2024-01", value: 100.0, source: "BCRA" },
   { date: "2024-02", value: 108.5, source: "BCRA" },
   { date: "2024-03", value: 116.2, source: "BCRA" },
@@ -81,7 +83,7 @@ const ICL_DATA: IndexValue[] = [
   { date: "2026-05", value: 377.4, source: "BCRA" },
 ];
 
-function getIndexData(type: "icl" | "ipc"): IndexValue[] {
+function getStaticIndexData(type: "icl" | "ipc"): IndexValue[] {
   return type === "icl" ? ICL_DATA : IPC_DATA;
 }
 
@@ -106,6 +108,26 @@ function getClosestIndex(
 
 function getLatestIndex(data: IndexValue[]): IndexValue {
   return data[data.length - 1];
+}
+
+export async function getLatestICL(): Promise<IndexValue> {
+  const fetched = await fetchIndexData("icl");
+  return { date: fetched.period, value: fetched.value, source: fetched.source };
+}
+
+export async function getLatestIPC(): Promise<IndexValue> {
+  const fetched = await fetchIndexData("ipc");
+  return { date: fetched.period, value: fetched.value, source: fetched.source };
+}
+
+export async function getIndexValueAsync(
+  type: "icl" | "ipc",
+  date: string
+): Promise<IndexValue | null> {
+  const fetched = await fetchIndexData(type);
+  const staticData = getStaticIndexData(type);
+  const merged = [...staticData, { date: fetched.period, value: fetched.value, source: fetched.source }];
+  return getClosestIndex(merged, date);
 }
 
 export function calculateRentIncrease(
@@ -134,8 +156,8 @@ export function calculateRentIncrease(
     };
   }
 
-  const baseIndex = getClosestIndex(getIndexData(indexType), baseDate);
-  const currentIndex = getClosestIndex(getIndexData(indexType), currentDate);
+  const baseIndex = getClosestIndex(getStaticIndexData(indexType), baseDate);
+  const currentIndex = getClosestIndex(getStaticIndexData(indexType), currentDate);
 
   if (!baseIndex || !currentIndex) {
     return {
@@ -245,9 +267,9 @@ export function getIndexValue(
   type: "icl" | "ipc",
   date: string
 ): IndexValue | null {
-  return getClosestIndex(getIndexData(type), date);
+  return getClosestIndex(getStaticIndexData(type), date);
 }
 
 export function getLatestIndexValue(type: "icl" | "ipc"): IndexValue {
-  return getLatestIndex(getIndexData(type));
+  return getLatestIndex(getStaticIndexData(type));
 }

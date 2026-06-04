@@ -3,9 +3,11 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
+  const { showToast } = useToast();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -59,11 +61,13 @@ export default function SettingsPage() {
       }
 
       setPasswordMsg("Contraseña actualizada correctamente");
+      showToast("Contraseña actualizada correctamente", "success");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch {
       setPasswordErr("Error de conexión");
+      showToast("Error de conexión", "error");
     } finally {
       setPasswordLoading(false);
     }

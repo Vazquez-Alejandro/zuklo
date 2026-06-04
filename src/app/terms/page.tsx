@@ -54,17 +54,38 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-3">8. Suscripciones y pagos</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">8. Scraping de portales inmobiliarios</h2>
+            <p>
+              Zuklo realiza la captura automatizada de información de propiedades en alquiler a través de portales
+              inmobiliarios públicos. Al utilizar el Servicio, usted comprende y acepta los siguientes términos
+              respecto de esta funcionalidad:
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-4 mt-2">
+              <li><strong className="text-white">Datos recopilados:</strong> título de la publicación, precio, ubicación, superficie, cantidad de ambientes, descripción, enlace a la publicación original, imágenes públicas y datos de contacto del anunciante cuando están disponibles.</li>
+              <li><strong className="text-white">Frecuencia:</strong> la captura se realiza de forma periódica según el plan de suscripción del usuario. Los datos pueden no reflejar cambios en tiempo real.</li>
+              <li><strong className="text-white">Disponibilidad:</strong> la disponibilidad y precisión de los datos depende de cada portal inmobiliario. Zuklo no garantiza la exactitud ni la vigencia de la información capturada.</li>
+              <li><strong className="text-white">Uso permitido:</strong> los datos capturados son para uso personal del usuario dentro de la plataforma. Queda prohibida su redistribución, reventa o uso comercial externo.</li>
+              <li><strong className="text-white">Limitación de responsabilidad:</strong> Zuklo no es responsable por cambios en las políticas de los portales inmobiliarios, interrupciones en el servicio de scraping, o la eliminación de publicaciones originales.</li>
+              <li><strong className="text-white">Propiedad intelectual:</strong> los datos y fotografías pertenecen a sus respectivos anunciantes y portales. Zuklo actúa como intermediario tecnológico y no reclama propiedad sobre dicho contenido.</li>
+            </ul>
+            <p className="mt-2 text-sm text-slate-400">
+              Si usted es titular de un portal inmobiliario y desea solicitar la exclusión de su contenido del scraping,
+              contacte a <span className="text-emerald-400">scraping@zuklo.com</span>.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-white mb-3">9. Suscripciones y pagos</h2>
             <p>Las suscripciones premium se facturan a través de Stripe. Los precios están en pesos argentinos (ARS) e incluyen IVA. La cancelación puede realizarse en cualquier momento desde la sección de facturación.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-3">9. Terminación</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">10. Terminación</h2>
             <p>Zuklo se reserva el derecho de suspender o cancelar cuentas que violen estos términos, previa notificación cuando sea posible.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-white mb-3">10. Ley aplicable</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">11. Ley aplicable</h2>
             <p>Estos términos se rigen por las leyes de la República Argentina. Cualquier controversia será sometida a la jurisdicción de los tribunales competentes de la Ciudad Autónoma de Buenos Aires.</p>
           </section>
         </div>
