@@ -16,6 +16,9 @@ const publicRoutes = [
 const apiPublicRoutes = [
   "/api/auth",
   "/api/webhook",
+  "/api/health",
+  "/api/docs",
+  "/api/arco",
 ];
 
 export function middleware(request: NextRequest) {
