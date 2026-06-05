@@ -9,7 +9,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Prerequisitos
 - Node.js 18+
 - Redis (para BullMQ)
-- Cuenta de Supabase (gratis)
+- Cuenta de Neon (gratis — PostgreSQL serverless)
 - Cuenta de Stripe (para monetización)
 
 ## Pasos para correr
@@ -24,7 +24,7 @@ npm run dev
 
 La app arranca en http://localhost:3000
 
-**Nota:** Redis y Supabase/Stripe no son necesarios para que arranque en dev. Las APIs van a fallar si no están configuradas, pero la app carga.
+**Nota:** Redis, Neon y Stripe no son necesarios para que arranque en dev. Las APIs van a fallar si no están configuradas, pero la app carga.
 
 ## Variables de entorno (opcional para dev)
 
@@ -35,8 +35,8 @@ cp .env.example .env.local
 ```
 
 Las que necesitás para funcionalidad completa:
-- `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` → auth
-- `SUPABASE_SERVICE_ROLE_KEY` → admin operations
+- `DATABASE_URL` → Neon PostgreSQL connection string
+- `BETTER_AUTH_SECRET` → JWT secret (32+ chars)
 - `STRIPE_SECRET_KEY` → billing
 - `REDIS_URL` → background jobs (scraping automático)
 - `APIFY_TOKEN` → scraping de propiedades
@@ -51,8 +51,8 @@ npm start
 ## Arquitectura
 
 - **Frontend**: Next.js 16 + TypeScript + Tailwind CSS
-- **Auth**: Supabase Auth (multi-tenant)
-- **DB**: Supabase (PostgreSQL + RLS)
+- **Auth**: Custom JWT (jose library) + Drizzle ORM
+- **DB**: Neon PostgreSQL + Drizzle ORM (RLS via application-level auth)
 - **Payments**: Stripe (3 planes: Free/Premium/Pro)
 - **Scraping**: Apify + BullMQ (8 portales inmobiliarios)
 - **Notifications**: Firebase Cloud Messaging
@@ -75,7 +75,7 @@ npm run test:watch  # watch mode
 - [x] Auth agregada a 7 API routes (contracts, maintenance, jobs, scrape, notifications, tokens, index)
 - [x] IDOR vulnerabilities corregidos (userId desde sesión, nunca del body)
 - [x] XSS fix en PDF template (`escapeHtml()`)
-- [x] 5 in-memory Maps migrados a Supabase (contracts, filters, tenant-profile, maintenance, notification-service)
+- [x] 5 in-memory Maps migrados a Drizzle ORM (contracts, filters, tenant-profile, maintenance, notification-service)
 - [x] SQL migrations reescritos (002: ALTER TABLE, 003: JSONB columns, 004: sin duplicados)
 - [x] RLS habilitado en todas las tablas
 - [x] Config env vars (Redis, Puppeteer path)
@@ -111,12 +111,21 @@ npm run test:watch  # watch mode
 - [x] Términos de scraping agregados en /terms
 - [x] Política de cookies agregada en /privacy
 - [x] Supabase self-hosted Docker setup (docker/supabase/)
+- [x] Migrated from Supabase to Drizzle ORM + Neon PostgreSQL
+- [x] Custom JWT auth with jose library (src/lib/auth.ts)
+- [x] Complete Drizzle schema: 15 tables (src/lib/schema.ts)
+- [x] Neon HTTP driver client (src/lib/db.ts)
+- [x] Auth API route: signup, login, logout, get-user (src/app/api/auth/route.ts)
+- [x] All 7 lib files migrated from Supabase to Drizzle ORM
+- [x] All snake_case → camelCase fixed in Drizzle queries
+- [x] Build passing: 33 routes (17 static + 16 dynamic)
+- [x] 87 tests still passing after migration
 
 ### 🔲 Pendiente - Configuración Externa (requiere servicios)
-- [ ] Levantar Supabase Docker: `bash docker/supabase/setup.sh`
+- [ ] Create Neon account → get DATABASE_URL → run `npx drizzle-kit push`
+- [ ] Install Redis: `sudo apt install redis-server`
 - [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs
 - [ ] Configurar Stripe Webhooks en producción (endpoint: /api/webhook)
-- [ ] Configurar Redis para producción (Upstash o similar)
 - [ ] Configurar Firebase Cloud Messaging (proyecto + vapid key)
 - [ ] Crear cuenta Apify y configurar actors
 - [ ] Deploy a Vercel (dominio, SSL, env vars en producción)
