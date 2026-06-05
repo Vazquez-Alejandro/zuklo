@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function loadUser() {
-      const token = getCookie("sb-access-token");
+      const token = getCookie("zuklo-session");
       if (!token) {
         if (!cancelled) {
           setUser(null);
@@ -55,11 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch("/api/auth", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "get-user" }),
+          credentials: "include",
         });
 
         const data = await res.json();
@@ -69,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser({
               id: data.user.id,
               email: data.user.email,
-              name: data.user.user_metadata?.full_name,
+              name: data.user.name,
             });
           } else {
             setUser(null);
@@ -94,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: "login", email, password }),
       });
 
@@ -107,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser({
           id: data.user.id,
           email: data.user.email,
-          name: data.user.user_metadata?.full_name,
+          name: data.user.name,
         });
       }
 
@@ -122,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: "signup", email, password, name }),
       });
 
@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: data.error };
       }
 
-      return { message: data.message };
+      return { message: "Cuenta creada exitosamente" };
     } catch {
       return { error: "Error de conexion" };
     }
@@ -142,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: "logout" }),
       });
     } finally {
@@ -151,23 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const forgotPassword = async (email: string) => {
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "forgot-password", email }),
-      });
-
-      const data = await res.json();
-
-      if (data.error) {
-        return { error: data.error };
-      }
-
-      return { message: data.message };
-    } catch {
-      return { error: "Error de conexion" };
-    }
+    return { message: "Función no disponible aún" };
   };
 
   return (

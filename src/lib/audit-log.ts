@@ -1,4 +1,5 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { auditLogs } from "@/lib/schema";
 
 type AuditAction =
   | "user.signup"
@@ -18,13 +19,13 @@ export async function logAuditAction(
   userId: string,
   meta?: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await supabaseAdmin.from("audit_logs").insert({
-    user_id: userId,
-    action,
-    meta: meta ?? {},
-  });
-
-  if (error) {
-    console.error("[audit-log] Failed to insert:", error.message);
+  try {
+    await db.insert(auditLogs).values({
+      userId,
+      action,
+      meta: meta ?? {},
+    });
+  } catch (error) {
+    console.error("[audit-log] Failed to insert:", error instanceof Error ? error.message : error);
   }
 }

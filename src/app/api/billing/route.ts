@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         if (!customer) {
           customer = await createStripeCustomer(
             user.email!,
-            user.user_metadata?.full_name || user.email!,
+            user.name || user.email!,
             { userId: user.id }
           );
         }

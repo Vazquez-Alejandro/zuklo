@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { users } from "@/lib/schema";
+import { eq } from "drizzle-orm";
+import { createSession, deleteSession, hashPassword, verifyPassword, getUserFromRequest, COOKIE_NAME } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
   const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+
   const rl = rateLimit(`auth:${ip}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
-  const start = Date.now();
   try {
     const body = await request.json();
     const { action, email, password, name } = body;
@@ -18,170 +22,109 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case "signup": {
         if (!email || !password) {
-          return NextResponse.json(
-            { error: "Email and password are required" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 });
+        }
+        if (password.length < 6) {
+          return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 });
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        if (existing.length > 0) {
+          return NextResponse.json({ error: "Este email ya está registrado" }, { status: 400 });
+        }
+
+        const [user] = await db.insert(users).values({
           email,
-          password,
-          options: {
-            data: {
-              full_name: name || email.split("@")[0],
-            },
-          },
+          name: name || null,
+        }).returning();
+
+        const token = await createSession({
+          id: user.id,
+          email: user.email,
+          name: user.name,
         });
 
-        if (error) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 200, duration, data.user?.id);
-        return NextResponse.json({
-          user: data.user,
-          session: data.session,
-          message: data.user?.identities?.length === 0
-            ? "Email already registered"
-            : "Account created successfully",
+        const response = NextResponse.json({
+          user: { id: user.id, email: user.email, name: user.name },
+          session: { accessToken: token },
         });
+
+        response.headers.set(
+          "Set-Cookie",
+          `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
+        );
+
+        logRequest("POST", "/api/auth", 200, Date.now() - start);
+        return response;
       }
 
-      case "login": {
+      case "login":
+      case "signin": {
         if (!email || !password) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json(
-            { error: "Email and password are required" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 });
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json({ error: error.message }, { status: 400 });
+        const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        if (rows.length === 0) {
+          return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
         }
 
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 200, duration, data.user?.id);
-        return NextResponse.json({
-          user: data.user,
-          session: data.session,
+        const user = rows[0];
+
+        const token = await createSession({
+          id: user.id,
+          email: user.email,
+          name: user.name,
         });
+
+        const response = NextResponse.json({
+          user: { id: user.id, email: user.email, name: user.name },
+          session: { accessToken: token },
+        });
+
+        response.headers.set(
+          "Set-Cookie",
+          `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
+        );
+
+        logRequest("POST", "/api/auth", 200, Date.now() - start);
+        return response;
       }
 
-      case "logout": {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 200, duration);
-        return NextResponse.json({ message: "Logged out successfully" });
-      }
-
-      case "forgot-password": {
-        if (!email) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json(
-            { error: "Email is required" },
-            { status: 400 }
-          );
-        }
-
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
-        });
-
-        if (error) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 200, duration);
-        return NextResponse.json({
-          message: "Password reset email sent",
-        });
-      }
-
-      case "update-password": {
-        const { newPassword } = body;
-        if (!newPassword) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json(
-            { error: "New password is required" },
-            { status: 400 }
-          );
-        }
-
-        const { error } = await supabase.auth.updateUser({
-          password: newPassword,
-        });
-
-        if (error) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 400, duration);
-          return NextResponse.json({ error: error.message }, { status: 400 });
-        }
-
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 200, duration);
-        return NextResponse.json({ message: "Password updated successfully" });
-      }
-
-      case "get-user": {
+      case "logout":
+      case "signout": {
         const authHeader = request.headers.get("Authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 200, duration);
-          return NextResponse.json({ user: null });
+        const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        if (token) {
+          await deleteSession(token);
         }
 
-        const token = authHeader.split(" ")[1];
-        const { data: { user }, error } = await supabase.auth.getUser(token);
+        const response = NextResponse.json({ ok: true });
+        response.headers.set(
+          "Set-Cookie",
+          `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
+        );
 
-        if (error || !user) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/auth", 200, duration);
-          return NextResponse.json({ user: null });
+        logRequest("POST", "/api/auth", 200, Date.now() - start);
+        return response;
+      }
+
+      case "get-session":
+      case "get-user": {
+        const user = await getUserFromRequest(request);
+        if (!user) {
+          return NextResponse.json({ user: null }, { status: 401 });
         }
 
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 200, duration, user.id);
+        logRequest("POST", "/api/auth", 200, Date.now() - start);
         return NextResponse.json({ user });
       }
 
       default:
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/auth", 400, duration);
-        return NextResponse.json(
-          { error: "Unknown action" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
     }
   } catch (error) {
-    console.error("Auth error:", error);
-    const duration = Date.now() - start;
-    logRequest("POST", "/api/auth", 500, duration);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    logRequest("POST", "/api/auth", 500, Date.now() - start);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "./supabase";
+import { db } from "@/lib/db";
+import { userFilters } from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 
 export interface UserFilter {
   id: string;
@@ -77,285 +79,253 @@ export interface UpdateFilterInput extends Partial<CreateFilterInput> {
 
 interface Row {
   id: string;
-  user_id: string;
+  userId: string;
   name: string;
-  is_active: boolean;
-  price_min: number | null;
-  price_max: number | null;
-  price_currency: string | null;
-  expenses_max: number | null;
-  cities: string[];
-  states: string[];
-  country: string | null;
-  radius_km: number | null;
-  center_lat: number | null;
-  center_lng: number | null;
-  min_bedrooms: number | null;
-  max_bedrooms: number | null;
-  min_bathrooms: number | null;
-  max_bathrooms: number | null;
-  min_area: number | null;
-  max_area: number | null;
-  area_unit: string | null;
-  min_parking_spaces: number | null;
-  pet_friendly: boolean | null;
+  isActive: boolean | null;
+  priceMin: string | null;
+  priceMax: string | null;
+  priceCurrency: string | null;
+  expensesMax: string | null;
+  cities: string[] | null;
+  states: string[] | null;
+  filterCountry: string | null;
+  radiusKm: string | null;
+  centerLat: number | null;
+  centerLng: number | null;
+  minBedrooms: number | null;
+  maxBedrooms: number | null;
+  minBathrooms: number | null;
+  maxBathrooms: number | null;
+  minArea: string | null;
+  maxArea: string | null;
+  areaUnit: string | null;
+  minParkingSpaces: number | null;
+  petFriendly: boolean | null;
   furnished: boolean | null;
-  min_contract_months: number | null;
-  portals: string[];
-  keywords: string[];
-  exclude_keywords: string[];
-  notification_enabled: boolean;
-  notification_method: string;
-  created_at: string;
-  updated_at: string;
+  minContractMonths: number | null;
+  portals: string[] | null;
+  keywords: string[] | null;
+  excludeKeywords: string[] | null;
+  notificationEnabled: boolean | null;
+  notificationMethod: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 function rowToFilter(row: Row): UserFilter {
   return {
     id: row.id,
-    userId: row.user_id,
+    userId: row.userId,
     name: row.name,
-    isActive: row.is_active,
+    isActive: row.isActive ?? true,
     priceRange: {
-      min: row.price_min,
-      max: row.price_max,
-      currency: row.price_currency,
+      min: row.priceMin ? Number(row.priceMin) : null,
+      max: row.priceMax ? Number(row.priceMax) : null,
+      currency: row.priceCurrency,
     },
     expensesRange: {
-      max: row.expenses_max,
+      max: row.expensesMax ? Number(row.expensesMax) : null,
     },
     location: {
       cities: row.cities ?? [],
       states: row.states ?? [],
-      country: row.country,
-      radiusKm: row.radius_km,
-      centerLat: row.center_lat,
-      centerLng: row.center_lng,
+      country: row.filterCountry,
+      radiusKm: row.radiusKm ? Number(row.radiusKm) : null,
+      centerLat: row.centerLat,
+      centerLng: row.centerLng,
     },
     features: {
-      minBedrooms: row.min_bedrooms,
-      maxBedrooms: row.max_bedrooms,
-      minBathrooms: row.min_bathrooms,
-      maxBathrooms: row.max_bathrooms,
-      minArea: row.min_area,
-      maxArea: row.max_area,
-      areaUnit: row.area_unit,
-      minParkingSpaces: row.min_parking_spaces,
+      minBedrooms: row.minBedrooms,
+      maxBedrooms: row.maxBedrooms,
+      minBathrooms: row.minBathrooms,
+      maxBathrooms: row.maxBathrooms,
+      minArea: row.minArea ? Number(row.minArea) : null,
+      maxArea: row.maxArea ? Number(row.maxArea) : null,
+      areaUnit: row.areaUnit,
+      minParkingSpaces: row.minParkingSpaces,
     },
     restrictions: {
-      petFriendly: row.pet_friendly,
+      petFriendly: row.petFriendly,
       furnished: row.furnished,
-      minContractMonths: row.min_contract_months,
+      minContractMonths: row.minContractMonths,
     },
     portals: row.portals ?? [],
     keywords: row.keywords ?? [],
-    excludeKeywords: row.exclude_keywords ?? [],
+    excludeKeywords: row.excludeKeywords ?? [],
     notification: {
-      enabled: row.notification_enabled,
-      method: row.notification_method as "push" | "email" | "both",
+      enabled: row.notificationEnabled ?? true,
+      method: (row.notificationMethod as "push" | "email" | "both") ?? "push",
     },
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
 function inputToRow(
   input: CreateFilterInput,
-  overrides?: Partial<Row>
-): Omit<Row, "id" | "created_at" | "updated_at"> & {
-  id?: string;
-  created_at?: string;
-  updated_at?: string;
-} {
-  const now = new Date().toISOString();
+  overrides?: Record<string, unknown>
+) {
+  const now = new Date();
   return {
-    id: overrides?.id,
-    user_id: input.userId,
+    id: overrides?.id as string | undefined,
+    userId: input.userId,
     name: input.name,
-    is_active: overrides?.is_active ?? true,
-    price_min: input.priceRange?.min ?? null,
-    price_max: input.priceRange?.max ?? null,
-    price_currency: input.priceRange?.currency ?? null,
-    expenses_max: input.expensesRange?.max ?? null,
+    isActive: (overrides?.isActive as boolean) ?? true,
+    priceMin: input.priceRange?.min != null ? String(input.priceRange.min) : null,
+    priceMax: input.priceRange?.max != null ? String(input.priceRange.max) : null,
+    priceCurrency: input.priceRange?.currency ?? null,
+    expensesMax: input.expensesRange?.max != null ? String(input.expensesRange.max) : null,
     cities: input.location?.cities ?? [],
     states: input.location?.states ?? [],
-    country: input.location?.country ?? null,
-    radius_km: input.location?.radiusKm ?? null,
-    center_lat: input.location?.centerLat ?? null,
-    center_lng: input.location?.centerLng ?? null,
-    min_bedrooms: input.features?.minBedrooms ?? null,
-    max_bedrooms: input.features?.maxBedrooms ?? null,
-    min_bathrooms: input.features?.minBathrooms ?? null,
-    max_bathrooms: input.features?.maxBathrooms ?? null,
-    min_area: input.features?.minArea ?? null,
-    max_area: input.features?.maxArea ?? null,
-    area_unit: input.features?.areaUnit ?? null,
-    min_parking_spaces: input.features?.minParkingSpaces ?? null,
-    pet_friendly: input.restrictions?.petFriendly ?? null,
+    filterCountry: input.location?.country ?? null,
+    radiusKm: input.location?.radiusKm != null ? String(input.location.radiusKm) : null,
+    centerLat: input.location?.centerLat ?? null,
+    centerLng: input.location?.centerLng ?? null,
+    minBedrooms: input.features?.minBedrooms ?? null,
+    maxBedrooms: input.features?.maxBedrooms ?? null,
+    minBathrooms: input.features?.minBathrooms ?? null,
+    maxBathrooms: input.features?.maxBathrooms ?? null,
+    minArea: input.features?.minArea != null ? String(input.features.minArea) : null,
+    maxArea: input.features?.maxArea != null ? String(input.features.maxArea) : null,
+    areaUnit: input.features?.areaUnit ?? null,
+    minParkingSpaces: input.features?.minParkingSpaces ?? null,
+    petFriendly: input.restrictions?.petFriendly ?? null,
     furnished: input.restrictions?.furnished ?? null,
-    min_contract_months: input.restrictions?.minContractMonths ?? null,
+    minContractMonths: input.restrictions?.minContractMonths ?? null,
     portals: input.portals ?? [],
     keywords: input.keywords ?? [],
-    exclude_keywords: input.excludeKeywords ?? [],
-    notification_enabled: input.notification?.enabled ?? true,
-    notification_method: input.notification?.method ?? "push",
-    created_at: overrides?.created_at ?? now,
-    updated_at: overrides?.updated_at ?? now,
+    excludeKeywords: input.excludeKeywords ?? [],
+    notificationEnabled: input.notification?.enabled ?? true,
+    notificationMethod: input.notification?.method ?? "push",
+    createdAt: (overrides?.createdAt as Date) ?? now,
+    updatedAt: (overrides?.updatedAt as Date) ?? now,
   };
 }
 
 export async function createFilter(input: CreateFilterInput): Promise<UserFilter> {
   const row = inputToRow(input);
 
-  const { data, error } = await supabaseAdmin
-    .from("user_filters")
-    .insert(row)
-    .select()
-    .single();
+  const [result] = await db.insert(userFilters).values(row).returning();
 
-  if (error) {
-    throw new Error(`Failed to create filter: ${error.message}`);
-  }
-
-  return rowToFilter(data as Row);
+  return rowToFilter(result as Row);
 }
 
 export async function updateFilter(
   id: string,
   input: UpdateFilterInput
 ): Promise<UserFilter | null> {
-  const { data: existing, error: fetchError } = await supabaseAdmin
-    .from("user_filters")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [existing] = await db.select().from(userFilters)
+    .where(eq(userFilters.id, id))
+    .limit(1);
 
-  if (fetchError || !existing) {
+  if (!existing) {
     return null;
   }
 
   const merged: CreateFilterInput = {
-    userId: input.userId ?? (existing as Row).user_id,
+    userId: input.userId ?? (existing as Row).userId,
     name: input.name ?? (existing as Row).name,
     priceRange: input.priceRange ?? {
-      min: (existing as Row).price_min,
-      max: (existing as Row).price_max,
-      currency: (existing as Row).price_currency,
+      min: (existing as Row).priceMin ? Number((existing as Row).priceMin) : null,
+      max: (existing as Row).priceMax ? Number((existing as Row).priceMax) : null,
+      currency: (existing as Row).priceCurrency,
     },
     expensesRange: input.expensesRange ?? {
-      max: (existing as Row).expenses_max,
+      max: (existing as Row).expensesMax ? Number((existing as Row).expensesMax) : null,
     },
     location: input.location ?? {
       cities: (existing as Row).cities ?? [],
       states: (existing as Row).states ?? [],
-      country: (existing as Row).country,
-      radiusKm: (existing as Row).radius_km,
-      centerLat: (existing as Row).center_lat,
-      centerLng: (existing as Row).center_lng,
+      country: (existing as Row).filterCountry,
+      radiusKm: (existing as Row).radiusKm ? Number((existing as Row).radiusKm) : null,
+      centerLat: (existing as Row).centerLat,
+      centerLng: (existing as Row).centerLng,
     },
     features: input.features ?? {
-      minBedrooms: (existing as Row).min_bedrooms,
-      maxBedrooms: (existing as Row).max_bedrooms,
-      minBathrooms: (existing as Row).min_bathrooms,
-      maxBathrooms: (existing as Row).max_bathrooms,
-      minArea: (existing as Row).min_area,
-      maxArea: (existing as Row).max_area,
-      areaUnit: (existing as Row).area_unit,
-      minParkingSpaces: (existing as Row).min_parking_spaces,
+      minBedrooms: (existing as Row).minBedrooms,
+      maxBedrooms: (existing as Row).maxBedrooms,
+      minBathrooms: (existing as Row).minBathrooms,
+      maxBathrooms: (existing as Row).maxBathrooms,
+      minArea: (existing as Row).minArea ? Number((existing as Row).minArea) : null,
+      maxArea: (existing as Row).maxArea ? Number((existing as Row).maxArea) : null,
+      areaUnit: (existing as Row).areaUnit,
+      minParkingSpaces: (existing as Row).minParkingSpaces,
     },
     restrictions: input.restrictions ?? {
-      petFriendly: (existing as Row).pet_friendly,
+      petFriendly: (existing as Row).petFriendly,
       furnished: (existing as Row).furnished,
-      minContractMonths: (existing as Row).min_contract_months,
+      minContractMonths: (existing as Row).minContractMonths,
     },
     portals: input.portals ?? (existing as Row).portals ?? [],
     keywords: input.keywords ?? (existing as Row).keywords ?? [],
     excludeKeywords:
-      input.excludeKeywords ?? (existing as Row).exclude_keywords ?? [],
+      input.excludeKeywords ?? (existing as Row).excludeKeywords ?? [],
     notification: input.notification ?? {
-      enabled: (existing as Row).notification_enabled,
-      method: (existing as Row).notification_method as
+      enabled: (existing as Row).notificationEnabled ?? true,
+      method: ((existing as Row).notificationMethod as
         | "push"
         | "email"
-        | "both",
+        | "both") ?? "push",
     },
   };
 
   const row = inputToRow(merged, {
-    is_active: input.isActive ?? (existing as Row).is_active,
-    updated_at: new Date().toISOString(),
+    isActive: input.isActive ?? ((existing as Row).isActive ?? true),
+    updatedAt: new Date(),
   });
 
-  const { data, error } = await supabaseAdmin
-    .from("user_filters")
-    .update(row)
-    .eq("id", id)
-    .select()
-    .single();
+  const [result] = await db.update(userFilters)
+    .set(row)
+    .where(eq(userFilters.id, id))
+    .returning();
 
-  if (error) {
-    throw new Error(`Failed to update filter: ${error.message}`);
-  }
-
-  return rowToFilter(data as Row);
+  return rowToFilter(result as Row);
 }
 
 export async function getFilter(id: string): Promise<UserFilter | null> {
-  const { data, error } = await supabaseAdmin
-    .from("user_filters")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [row] = await db.select().from(userFilters)
+    .where(eq(userFilters.id, id))
+    .limit(1);
 
-  if (error || !data) {
+  if (!row) {
     return null;
   }
 
-  return rowToFilter(data as Row);
+  return rowToFilter(row as Row);
 }
 
 export async function getFiltersByUser(userId: string): Promise<UserFilter[]> {
-  const { data, error } = await supabaseAdmin
-    .from("user_filters")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  const rows = await db.select().from(userFilters)
+    .where(eq(userFilters.userId, userId))
+    .orderBy(desc(userFilters.createdAt));
 
-  if (error || !data) {
-    return [];
-  }
-
-  return (data as Row[]).map(rowToFilter);
+  return (rows as Row[]).map(rowToFilter);
 }
 
 export async function getActiveFilters(): Promise<UserFilter[]> {
-  const { data, error } = await supabaseAdmin
-    .from("user_filters")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+  const rows = await db.select().from(userFilters)
+    .where(eq(userFilters.isActive, true))
+    .orderBy(desc(userFilters.createdAt));
 
-  if (error || !data) {
-    return [];
-  }
-
-  return (data as Row[]).map(rowToFilter);
+  return (rows as Row[]).map(rowToFilter);
 }
 
 export async function deleteFilter(id: string): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("user_filters")
-    .delete()
-    .eq("id", id);
-
-  return !error;
+  try {
+    await db.delete(userFilters).where(eq(userFilters.id, id));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function deactivateFilter(id: string): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("user_filters")
-    .update({ is_active: false, updated_at: new Date().toISOString() })
-    .eq("id", id);
-
-  return !error;
+  try {
+    await db.update(userFilters)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(userFilters.id, id));
+    return true;
+  } catch {
+    return false;
+  }
 }

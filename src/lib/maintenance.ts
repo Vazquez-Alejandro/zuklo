@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "./supabase";
+import { db } from "@/lib/db";
+import { maintenanceExpenses } from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 
 export interface MaintenanceExpense {
   id: string;
@@ -61,79 +63,82 @@ export interface UpdateMaintenanceExpenseInput extends Partial<CreateMaintenance
 
 interface DBRow {
   id: string;
-  contract_id: string;
-  user_id: string;
+  contractId: string;
+  userId: string;
   category: string;
-  subcategory: string;
+  subcategory: string | null;
   description: string;
-  amount: number;
+  amount: string;
   currency: string;
-  expense_date: string;
+  expenseDate: string;
   provider: MaintenanceExpense["provider"];
-  photos: string[];
-  invoice_url: string;
+  photos: string[] | null;
+  invoiceUrl: string | null;
   status: string;
-  approved_by: string | null;
-  approved_at: string | null;
-  reimbursed_at: string | null;
-  is_recurring: boolean;
-  recurring_frequency: string | null;
-  created_at: string;
-  updated_at: string;
+  approvedBy: string | null;
+  approvedAt: Date | null;
+  reimbursedAt: Date | null;
+  isRecurring: boolean | null;
+  recurringFrequency: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 function rowToExpense(row: DBRow): MaintenanceExpense {
   return {
     id: row.id,
-    contractId: row.contract_id,
-    userId: row.user_id,
+    contractId: row.contractId,
+    userId: row.userId,
     category: row.category as MaintenanceExpense["category"],
-    subcategory: row.subcategory,
+    subcategory: row.subcategory ?? "",
     description: row.description,
-    amount: row.amount,
+    amount: Number(row.amount),
     currency: row.currency,
-    date: row.expense_date,
+    date: row.expenseDate,
     provider: row.provider,
     photos: row.photos ?? [],
-    invoiceUrl: row.invoice_url,
+    invoiceUrl: row.invoiceUrl ?? "",
     status: row.status as MaintenanceExpense["status"],
-    approvedBy: row.approved_by,
-    approvedAt: row.approved_at,
-    reimbursedAt: row.reimbursed_at,
+    approvedBy: row.approvedBy,
+    approvedAt: row.approvedAt ? (row.approvedAt as Date).toISOString() : null,
+    reimbursedAt: row.reimbursedAt ? (row.reimbursedAt as Date).toISOString() : null,
     metadata: {
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      isRecurring: row.is_recurring,
-      recurringFrequency: row.recurring_frequency as MaintenanceExpense["metadata"]["recurringFrequency"],
+      createdAt: (row.createdAt as Date).toISOString(),
+      updatedAt: (row.updatedAt as Date).toISOString(),
+      isRecurring: row.isRecurring ?? false,
+      recurringFrequency: row.recurringFrequency as MaintenanceExpense["metadata"]["recurringFrequency"],
     },
   };
 }
 
-function inputToRow(input: CreateMaintenanceExpenseInput, now: string) {
+function inputToRow(input: CreateMaintenanceExpenseInput, now: Date) {
   return {
-    contract_id: input.contractId,
-    user_id: input.userId,
+    contractId: input.contractId,
+    userId: input.userId,
     category: input.category,
     subcategory: input.subcategory,
     description: input.description,
-    amount: input.amount,
+    amount: String(input.amount),
     currency: input.currency,
-    expense_date: input.date,
+    expenseDate: input.date,
     provider: input.provider,
     photos: input.photos ?? [],
-    invoice_url: input.invoiceUrl ?? "",
+    invoiceUrl: input.invoiceUrl ?? "",
     status: "pending" as const,
-    is_recurring: input.isRecurring ?? false,
-    recurring_frequency: input.recurringFrequency ?? null,
-    created_at: now,
-    updated_at: now,
+    approvedBy: null,
+    approvedAt: null,
+    reimbursedAt: null,
+    isRecurring: input.isRecurring ?? false,
+    recurringFrequency: input.recurringFrequency ?? null,
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
 export async function createMaintenanceExpense(
   input: CreateMaintenanceExpenseInput
 ): Promise<MaintenanceExpense> {
-  const now = new Date().toISOString();
+  const now = new Date();
   const id = `maint-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const row = {
@@ -141,170 +146,149 @@ export async function createMaintenanceExpense(
     ...inputToRow(input, now),
   };
 
-  const { data, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .insert(row)
-    .select()
-    .single();
+  const [result] = await db.insert(maintenanceExpenses).values(row).returning();
 
-  if (error) throw error;
-  return rowToExpense(data as DBRow);
+  return rowToExpense(result as DBRow);
 }
 
 export async function updateMaintenanceExpense(
   id: string,
   input: UpdateMaintenanceExpenseInput
 ): Promise<MaintenanceExpense | null> {
-  const now = new Date().toISOString();
+  const now = new Date();
 
   const updateData: Record<string, unknown> = {
-    updated_at: now,
+    updatedAt: now,
   };
 
-  if (input.contractId !== undefined) updateData.contract_id = input.contractId;
-  if (input.userId !== undefined) updateData.user_id = input.userId;
+  if (input.contractId !== undefined) updateData.contractId = input.contractId;
+  if (input.userId !== undefined) updateData.userId = input.userId;
   if (input.category !== undefined) updateData.category = input.category;
   if (input.subcategory !== undefined) updateData.subcategory = input.subcategory;
   if (input.description !== undefined) updateData.description = input.description;
-  if (input.amount !== undefined) updateData.amount = input.amount;
+  if (input.amount !== undefined) updateData.amount = String(input.amount);
   if (input.currency !== undefined) updateData.currency = input.currency;
-  if (input.date !== undefined) updateData.expense_date = input.date;
+  if (input.date !== undefined) updateData.expenseDate = input.date;
   if (input.provider !== undefined) updateData.provider = input.provider;
   if (input.photos !== undefined) updateData.photos = input.photos;
-  if (input.invoiceUrl !== undefined) updateData.invoice_url = input.invoiceUrl;
-  if (input.isRecurring !== undefined) updateData.is_recurring = input.isRecurring;
-  if (input.recurringFrequency !== undefined) updateData.recurring_frequency = input.recurringFrequency;
+  if (input.invoiceUrl !== undefined) updateData.invoiceUrl = input.invoiceUrl;
+  if (input.isRecurring !== undefined) updateData.isRecurring = input.isRecurring;
+  if (input.recurringFrequency !== undefined) updateData.recurringFrequency = input.recurringFrequency;
 
   if (input.status !== undefined) {
     updateData.status = input.status;
 
     if (input.status === "approved") {
-      updateData.approved_by = input.approvedBy ?? null;
-      updateData.approved_at = now;
+      updateData.approvedBy = input.approvedBy ?? null;
+      updateData.approvedAt = now;
     }
 
     if (input.status === "reimbursed") {
-      updateData.reimbursed_at = now;
+      updateData.reimbursedAt = now;
     }
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .update(updateData)
-    .eq("id", id)
-    .select()
-    .single();
+  const [result] = await db.update(maintenanceExpenses)
+    .set(updateData)
+    .where(eq(maintenanceExpenses.id, id))
+    .returning();
 
-  if (error) return null;
-  return rowToExpense(data as DBRow);
+  if (!result) return null;
+  return rowToExpense(result as DBRow);
 }
 
 export async function getMaintenanceExpense(id: string): Promise<MaintenanceExpense | null> {
-  const { data, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .select()
-    .eq("id", id)
-    .single();
+  const [row] = await db.select().from(maintenanceExpenses)
+    .where(eq(maintenanceExpenses.id, id))
+    .limit(1);
 
-  if (error || !data) return null;
-  return rowToExpense(data as DBRow);
+  if (!row) return null;
+  return rowToExpense(row as DBRow);
 }
 
 export async function getMaintenanceExpensesByContract(
   contractId: string
 ): Promise<MaintenanceExpense[]> {
-  const { data, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .select()
-    .eq("contract_id", contractId)
-    .order("expense_date", { ascending: false });
+  const rows = await db.select().from(maintenanceExpenses)
+    .where(eq(maintenanceExpenses.contractId, contractId))
+    .orderBy(desc(maintenanceExpenses.expenseDate));
 
-  if (error || !data) return [];
-  return (data as DBRow[]).map(rowToExpense);
+  return (rows as DBRow[]).map(rowToExpense);
 }
 
 export async function getMaintenanceExpensesByUser(
   userId: string
 ): Promise<MaintenanceExpense[]> {
-  const { data, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .select()
-    .eq("user_id", userId)
-    .order("expense_date", { ascending: false });
+  const rows = await db.select().from(maintenanceExpenses)
+    .where(eq(maintenanceExpenses.userId, userId))
+    .orderBy(desc(maintenanceExpenses.expenseDate));
 
-  if (error || !data) return [];
-  return (data as DBRow[]).map(rowToExpense);
+  return (rows as DBRow[]).map(rowToExpense);
 }
 
 export async function deleteMaintenanceExpense(id: string): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .delete()
-    .eq("id", id);
-
-  return !error;
+  try {
+    await db.delete(maintenanceExpenses).where(eq(maintenanceExpenses.id, id));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function addPhotoToExpense(
   expenseId: string,
   photoUrl: string
 ): Promise<MaintenanceExpense | null> {
-  const now = new Date().toISOString();
+  const now = new Date();
 
-  const { data, error: fetchError } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .select("photos")
-    .eq("id", expenseId)
-    .single();
+  const [existing] = await db.select({ photos: maintenanceExpenses.photos })
+    .from(maintenanceExpenses)
+    .where(eq(maintenanceExpenses.id, expenseId))
+    .limit(1);
 
-  if (fetchError || !data) return null;
+  if (!existing) return null;
 
-  const currentPhotos: string[] = data.photos ?? [];
+  const currentPhotos: string[] = existing.photos ?? [];
   const updatedPhotos = [...currentPhotos, photoUrl];
 
-  const { data: updated, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .update({
+  const [result] = await db.update(maintenanceExpenses)
+    .set({
       photos: updatedPhotos,
-      updated_at: now,
+      updatedAt: now,
     })
-    .eq("id", expenseId)
-    .select()
-    .single();
+    .where(eq(maintenanceExpenses.id, expenseId))
+    .returning();
 
-  if (error) return null;
-  return rowToExpense(updated as DBRow);
+  if (!result) return null;
+  return rowToExpense(result as DBRow);
 }
 
 export async function removePhotoFromExpense(
   expenseId: string,
   photoUrl: string
 ): Promise<MaintenanceExpense | null> {
-  const now = new Date().toISOString();
+  const now = new Date();
 
-  const { data, error: fetchError } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .select("photos")
-    .eq("id", expenseId)
-    .single();
+  const [existing] = await db.select({ photos: maintenanceExpenses.photos })
+    .from(maintenanceExpenses)
+    .where(eq(maintenanceExpenses.id, expenseId))
+    .limit(1);
 
-  if (fetchError || !data) return null;
+  if (!existing) return null;
 
-  const currentPhotos: string[] = data.photos ?? [];
+  const currentPhotos: string[] = existing.photos ?? [];
   const updatedPhotos = currentPhotos.filter((p) => p !== photoUrl);
 
-  const { data: updated, error } = await supabaseAdmin
-    .from("maintenance_expenses")
-    .update({
+  const [result] = await db.update(maintenanceExpenses)
+    .set({
       photos: updatedPhotos,
-      updated_at: now,
+      updatedAt: now,
     })
-    .eq("id", expenseId)
-    .select()
-    .single();
+    .where(eq(maintenanceExpenses.id, expenseId))
+    .returning();
 
-  if (error) return null;
-  return rowToExpense(updated as DBRow);
+  if (!result) return null;
+  return rowToExpense(result as DBRow);
 }
 
 export interface ExpenseSummary {

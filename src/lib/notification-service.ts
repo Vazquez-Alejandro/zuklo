@@ -2,7 +2,9 @@ import { parseProperty, type ParsedProperty } from "./parser";
 import { getActiveFilters } from "./filters";
 import { matchPropertyAgainstAllFilters, type MatchResult } from "./matcher";
 import { sendPropertyAlert } from "./notifications";
-import { supabaseAdmin } from "./supabase";
+import { db } from "@/lib/db";
+import { deviceTokens, notificationLogs } from "@/lib/schema";
+import { eq, desc, and } from "drizzle-orm";
 import type { NormalizedProperty } from "@/types/property";
 
 export interface NotificationLog {
@@ -16,38 +18,32 @@ export interface NotificationLog {
 }
 
 export async function registerDeviceToken(userId: string, token: string): Promise<void> {
-  const { data: existing } = await supabaseAdmin
-    .from("device_tokens")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("token", token)
-    .single();
+  const rows = await db.select({ id: deviceTokens.id })
+    .from(deviceTokens)
+    .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.token, token)))
+    .limit(1);
 
-  if (existing) return;
+  if (rows[0]) return;
 
-  await supabaseAdmin.from("device_tokens").insert({
-    user_id: userId,
+  await db.insert(deviceTokens).values({
+    id: `dt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    userId,
     token,
-    is_active: true,
+    isActive: true,
   });
 }
 
 export async function removeDeviceToken(userId: string, token: string): Promise<void> {
-  await supabaseAdmin
-    .from("device_tokens")
-    .delete()
-    .eq("user_id", userId)
-    .eq("token", token);
+  await db.delete(deviceTokens)
+    .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.token, token)));
 }
 
 export async function getUserTokens(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin
-    .from("device_tokens")
-    .select("token")
-    .eq("user_id", userId)
-    .eq("is_active", true);
+  const rows = await db.select({ token: deviceTokens.token })
+    .from(deviceTokens)
+    .where(and(eq(deviceTokens.userId, userId), eq(deviceTokens.isActive, true)));
 
-  return data?.map((row) => row.token) || [];
+  return rows.map((row) => row.token);
 }
 
 export async function processNewProperty(
@@ -81,14 +77,14 @@ export async function processNewProperty(
         timestamp: new Date().toISOString(),
       };
       notifications.push(log);
-      await supabaseAdmin.from("notification_logs").insert({
+      await db.insert(notificationLogs).values({
         id: log.id,
-        property_id: log.propertyId,
-        filter_id: log.filterId,
-        filter_name: log.filterName,
-        user_id: log.userId,
+        propertyId: log.propertyId,
+        filterId: log.filterId,
+        filterName: log.filterName,
+        userId: log.userId,
         status: log.status,
-        sent_at: log.timestamp,
+        sentAt: new Date(log.timestamp),
       });
       continue;
     }
@@ -121,14 +117,14 @@ export async function processNewProperty(
     };
     notifications.push(log);
 
-    await supabaseAdmin.from("notification_logs").insert({
+    await db.insert(notificationLogs).values({
       id: log.id,
-      property_id: log.propertyId,
-      filter_id: log.filterId,
-      filter_name: log.filterName,
-      user_id: log.userId,
+      propertyId: log.propertyId,
+      filterId: log.filterId,
+      filterName: log.filterName,
+      userId: log.userId,
       status: log.status,
-      sent_at: log.timestamp,
+      sentAt: new Date(log.timestamp),
     });
   }
 
@@ -190,25 +186,22 @@ export async function getNotificationLogs(
   filterId?: string,
   limit: number = 50
 ): Promise<NotificationLog[]> {
-  let query = supabaseAdmin
-    .from("notification_logs")
-    .select("*")
-    .order("sent_at", { ascending: false })
+  const conditions = filterId
+    ? eq(notificationLogs.filterId, filterId)
+    : undefined;
+
+  const data = await db.select().from(notificationLogs)
+    .where(conditions)
+    .orderBy(desc(notificationLogs.sentAt))
     .limit(limit);
-
-  if (filterId) {
-    query = query.eq("filter_id", filterId);
-  }
-
-  const { data } = await query;
 
   return (data || []).map((row) => ({
     id: row.id,
-    propertyId: row.property_id,
-    filterId: row.filter_id,
-    filterName: row.filter_name,
-    userId: row.user_id,
-    status: row.status,
-    timestamp: row.sent_at,
+    propertyId: row.propertyId,
+    filterId: row.filterId,
+    filterName: row.filterName,
+    userId: row.userId,
+    status: row.status as NotificationLog["status"],
+    timestamp: row.sentAt?.toISOString() || row.createdAt.toISOString(),
   }));
 }

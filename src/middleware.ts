@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
   }
 
   const authHeader = request.headers.get("Authorization");
-  const token = request.cookies.get("sb-access-token")?.value;
+  const token = request.cookies.get("zuklo-session")?.value;
 
   if (!authHeader && !token) {
     if (pathname.startsWith("/api/")) {

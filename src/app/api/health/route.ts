@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { users } from "@/lib/schema";
 import { rateLimit } from "@/lib/rate-limit";
 
 interface HealthResponse {
@@ -13,8 +14,8 @@ interface HealthResponse {
 
 async function checkPostgres(): Promise<boolean> {
   try {
-    const { error } = await supabase.from("tenants").select("id").limit(1);
-    return !error;
+    const rows = await db.select({ id: users.id }).from(users).limit(1);
+    return rows.length > 0;
   } catch {
     return false;
   }

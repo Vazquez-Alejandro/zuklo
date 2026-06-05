@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "./supabase";
+import { db } from "@/lib/db";
+import { tenantProfiles } from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 
 export interface TenantProfile {
   id: string;
@@ -123,41 +125,41 @@ export type UpdateTenantProfileInput = Partial<CreateTenantProfileInput>;
 function rowToProfile(row: Record<string, unknown>): TenantProfile {
   return {
     id: row.id as string,
-    userId: row.user_id as string,
-    personalInfo: row.personal_info as TenantProfile["personalInfo"],
+    userId: row.userId as string,
+    personalInfo: row.personalInfo as TenantProfile["personalInfo"],
     employment: row.employment as TenantProfile["employment"],
     income: row.income as TenantProfile["income"],
     guarantor: row.guarantor as TenantProfile["guarantor"],
-    coHabitants: (row.co_habitants as TenantProfile["coHabitants"]) || [],
+    coHabitants: (row.coHabitants as TenantProfile["coHabitants"]) || [],
     pets: (row.pets as TenantProfile["pets"]) || [],
-    references: (row.references_data as TenantProfile["references"]) || [],
-    rentalHistory: (row.rental_history as TenantProfile["rentalHistory"]) || [],
+    references: (row.referencesList as TenantProfile["references"]) || [],
+    rentalHistory: (row.rentalHistory as TenantProfile["rentalHistory"]) || [],
     documents: row.documents as TenantProfile["documents"],
     metadata: {
-      createdAt: row.created_at as string,
-      updatedAt: row.updated_at as string,
-      completedAt: (row.completed_at as string) || null,
-      isVerified: (row.is_verified as boolean) || false,
-      verificationScore: (row.verification_score as number) || 0,
+      createdAt: (row.createdAt as Date).toISOString(),
+      updatedAt: (row.updatedAt as Date).toISOString(),
+      completedAt: row.completedAt ? (row.completedAt as Date).toISOString() : null,
+      isVerified: (row.isVerified as boolean) || false,
+      verificationScore: (row.verificationScore as number) || 0,
     },
   };
 }
 
 export async function createTenantProfile(input: CreateTenantProfileInput): Promise<TenantProfile> {
-  const now = new Date().toISOString();
+  const now = new Date();
   const id = `tenant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const row = {
     id,
-    user_id: input.userId,
-    personal_info: input.personalInfo,
+    userId: input.userId,
+    personalInfo: input.personalInfo,
     employment: input.employment,
     income: input.income,
     guarantor: input.guarantor,
-    co_habitants: input.coHabitants || [],
+    coHabitants: input.coHabitants || [],
     pets: input.pets || [],
-    references_data: input.references || [],
-    rental_history: input.rentalHistory || [],
+    referencesList: input.references || [],
+    rentalHistory: input.rentalHistory || [],
     documents: input.documents || {
       dniFront: "",
       dniBack: "",
@@ -166,119 +168,99 @@ export async function createTenantProfile(input: CreateTenantProfileInput): Prom
       criminalRecord: "",
       creditReport: "",
     },
-    is_verified: false,
-    verification_score: calculateVerificationScore(input),
-    completed_at: null,
-    created_at: now,
-    updated_at: now,
+    isVerified: false,
+    verificationScore: calculateVerificationScore(input),
+    completedAt: null,
+    createdAt: now,
+    updatedAt: now,
   };
 
-  const { data, error } = await supabaseAdmin
-    .from("tenant_profiles")
-    .insert(row)
-    .select()
-    .single();
+  const [result] = await db.insert(tenantProfiles).values(row).returning();
 
-  if (error) {
-    throw new Error(`Failed to create tenant profile: ${error.message}`);
-  }
-
-  return rowToProfile(data);
+  return rowToProfile(result);
 }
 
 export async function updateTenantProfile(
   id: string,
   input: UpdateTenantProfileInput
 ): Promise<TenantProfile | null> {
-  const { data: existing } = await supabaseAdmin
-    .from("tenant_profiles")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [existing] = await db.select().from(tenantProfiles)
+    .where(eq(tenantProfiles.id, id))
+    .limit(1);
 
   if (!existing) return null;
 
   const merged = {
-    personal_info: input.personalInfo || existing.personal_info,
+    personalInfo: input.personalInfo || existing.personalInfo,
     employment: input.employment || existing.employment,
     income: input.income || existing.income,
     guarantor: input.guarantor || existing.guarantor,
-    co_habitants: input.coHabitants || existing.co_habitants,
+    coHabitants: input.coHabitants || existing.coHabitants,
     pets: input.pets || existing.pets,
-    references_data: input.references || existing.references_data,
-    rental_history: input.rentalHistory || existing.rental_history,
+    referencesList: input.references || existing.referencesList,
+    rentalHistory: input.rentalHistory || existing.rentalHistory,
     documents: input.documents || existing.documents,
-    updated_at: new Date().toISOString(),
-    verification_score: calculateVerificationScore({
-      userId: existing.user_id,
-      personalInfo: input.personalInfo || existing.personal_info,
+    updatedAt: new Date(),
+    verificationScore: calculateVerificationScore({
+      userId: existing.userId,
+      personalInfo: input.personalInfo || existing.personalInfo,
       employment: input.employment || existing.employment,
       income: input.income || existing.income,
       guarantor: input.guarantor || existing.guarantor,
-      coHabitants: input.coHabitants || existing.co_habitants,
+      coHabitants: input.coHabitants || existing.coHabitants,
       pets: input.pets || existing.pets,
-      references: input.references || existing.references_data,
-      rentalHistory: input.rentalHistory || existing.rental_history,
+      references: input.references || existing.referencesList,
+      rentalHistory: input.rentalHistory || existing.rentalHistory,
       documents: input.documents || existing.documents,
     } as CreateTenantProfileInput),
   };
 
-  const { data, error } = await supabaseAdmin
-    .from("tenant_profiles")
-    .update(merged)
-    .eq("id", id)
-    .select()
-    .single();
+  const [result] = await db.update(tenantProfiles)
+    .set(merged)
+    .where(eq(tenantProfiles.id, id))
+    .returning();
 
-  if (error) {
-    throw new Error(`Failed to update tenant profile: ${error.message}`);
+  if (!result) {
+    throw new Error("Failed to update tenant profile");
   }
 
-  return rowToProfile(data);
+  return rowToProfile(result);
 }
 
 export async function getTenantProfile(id: string): Promise<TenantProfile | null> {
-  const { data, error } = await supabaseAdmin
-    .from("tenant_profiles")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [row] = await db.select().from(tenantProfiles)
+    .where(eq(tenantProfiles.id, id))
+    .limit(1);
 
-  if (error || !data) return null;
+  if (!row) return null;
 
-  return rowToProfile(data);
+  return rowToProfile(row);
 }
 
 export async function getTenantProfileByUser(userId: string): Promise<TenantProfile | null> {
-  const { data, error } = await supabaseAdmin
-    .from("tenant_profiles")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
+  const [row] = await db.select().from(tenantProfiles)
+    .where(eq(tenantProfiles.userId, userId))
+    .limit(1);
 
-  if (error || !data) return null;
+  if (!row) return null;
 
-  return rowToProfile(data);
+  return rowToProfile(row);
 }
 
 export async function getAllTenantProfiles(): Promise<TenantProfile[]> {
-  const { data, error } = await supabaseAdmin
-    .from("tenant_profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const rows = await db.select().from(tenantProfiles)
+    .orderBy(desc(tenantProfiles.createdAt));
 
-  if (error || !data) return [];
-
-  return data.map(rowToProfile);
+  return rows.map(rowToProfile);
 }
 
 export async function deleteTenantProfile(id: string): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("tenant_profiles")
-    .delete()
-    .eq("id", id);
-
-  return !error;
+  try {
+    await db.delete(tenantProfiles).where(eq(tenantProfiles.id, id));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function calculateVerificationScore(profile: CreateTenantProfileInput | TenantProfile): number {

@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "./supabase";
+import { db } from "@/lib/db";
+import { subscriptions, userUsage } from "@/lib/schema";
+import { eq, desc, and } from "drizzle-orm";
 import { PLANS, type PlanId, type PlanFeatures } from "./stripe";
 
 export interface UserSubscription {
@@ -35,64 +37,60 @@ function getCurrentPeriod(): { start: string; end: string } {
 export async function getUserSubscription(
   userId: string
 ): Promise<UserSubscription | null> {
-  const { data } = await supabaseAdmin
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+  const rows = await db.select().from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .orderBy(desc(subscriptions.createdAt))
+    .limit(1);
+
+  const data = rows[0] || null;
 
   if (!data) return null;
 
   return {
     id: data.id,
-    userId: data.user_id,
-    stripeCustomerId: data.stripe_customer_id,
-    stripeSubscriptionId: data.stripe_subscription_id,
-    planId: data.plan_id,
-    status: data.status,
-    currentPeriodStart: data.current_period_start,
-    currentPeriodEnd: data.current_period_end,
-    cancelAtPeriodEnd: data.cancel_at !== null,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    userId: data.userId,
+    stripeCustomerId: data.stripeCustomerId || "",
+    stripeSubscriptionId: data.stripeSubscriptionId,
+    planId: (data.planId || "free") as PlanId,
+    status: (data.status || "active") as UserSubscription["status"],
+    currentPeriodStart: data.currentPeriodStart?.toISOString() || "",
+    currentPeriodEnd: data.currentPeriodEnd?.toISOString() || "",
+    cancelAtPeriodEnd: data.cancelAt !== null,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
   };
 }
 
 export async function getUserUsage(userId: string): Promise<UserUsage> {
   const { start, end } = getCurrentPeriod();
 
-  const { data } = await supabaseAdmin
-    .from("user_usage")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("period_start", start)
-    .single();
+  const rows = await db.select().from(userUsage)
+    .where(and(eq(userUsage.userId, userId), eq(userUsage.periodStart, start)))
+    .limit(1);
+
+  const data = rows[0] || null;
 
   if (data) {
     return {
-      userId: data.user_id,
-      searchAlertsUsed: data.search_alerts_used,
-      filtersCreated: data.filters_created,
-      tenantProfilesCreated: data.tenant_profiles_created,
-      pdfExportsUsed: data.pdf_exports_used,
-      periodStart: data.period_start,
-      periodEnd: data.period_end,
+      userId: data.userId,
+      searchAlertsUsed: data.searchAlertsUsed || 0,
+      filtersCreated: data.filtersCreated || 0,
+      tenantProfilesCreated: data.tenantProfilesCreated || 0,
+      pdfExportsUsed: data.pdfExportsUsed || 0,
+      periodStart: data.periodStart,
+      periodEnd: data.periodEnd,
     };
   }
 
-  const newUsage = {
-    user_id: userId,
-    period_start: start,
-    period_end: end,
-    search_alerts_used: 0,
-    filters_created: 0,
-    tenant_profiles_created: 0,
-    pdf_exports_used: 0,
-  };
-
-  await supabaseAdmin.from("user_usage").insert(newUsage);
+  await db.insert(userUsage).values({
+    userId,
+    periodStart: start,
+    periodEnd: end,
+    searchAlertsUsed: 0,
+    filtersCreated: 0,
+    tenantProfilesCreated: 0,
+    pdfExportsUsed: 0,
+  });
 
   return {
     userId,
@@ -112,11 +110,14 @@ export async function incrementUsage(
   const usage = await getUserUsage(userId);
   const newValue = usage[field] + 1;
 
-  await supabaseAdmin
-    .from("user_usage")
-    .update({ [field === "searchAlertsUsed" ? "search_alerts_used" : field === "filtersCreated" ? "filters_created" : field === "tenantProfilesCreated" ? "tenant_profiles_created" : "pdf_exports_used"]: newValue })
-    .eq("user_id", userId)
-    .eq("period_start", usage.periodStart);
+  const dbField = field === "searchAlertsUsed" ? "searchAlertsUsed"
+    : field === "filtersCreated" ? "filtersCreated"
+    : field === "tenantProfilesCreated" ? "tenantProfilesCreated"
+    : "pdfExportsUsed";
+
+  await db.update(userUsage)
+    .set({ [dbField]: newValue })
+    .where(and(eq(userUsage.userId, userId), eq(userUsage.periodStart, usage.periodStart)));
 
   return { ...usage, [field]: newValue };
 }
@@ -130,36 +131,30 @@ export async function createSubscription(
   currentPeriodStart: string,
   currentPeriodEnd: string
 ): Promise<UserSubscription> {
-  const now = new Date().toISOString();
-
-  const { data } = await supabaseAdmin
-    .from("subscriptions")
-    .insert({
-      user_id: userId,
-      stripe_customer_id: stripeCustomerId,
-      stripe_subscription_id: stripeSubscriptionId,
-      plan_id: planId,
+  const [data] = await db.insert(subscriptions)
+    .values({
+      userId,
+      stripeCustomerId,
+      stripeSubscriptionId,
+      planId,
       status,
-      current_period_start: currentPeriodStart,
-      current_period_end: currentPeriodEnd,
-      created_at: now,
-      updated_at: now,
+      currentPeriodStart: new Date(currentPeriodStart),
+      currentPeriodEnd: new Date(currentPeriodEnd),
     })
-    .select()
-    .single();
+    .returning();
 
   return {
     id: data.id,
-    userId: data.user_id,
-    stripeCustomerId: data.stripe_customer_id,
-    stripeSubscriptionId: data.stripe_subscription_id,
-    planId: data.plan_id,
-    status: data.status,
-    currentPeriodStart: data.current_period_start,
-    currentPeriodEnd: data.current_period_end,
+    userId: data.userId,
+    stripeCustomerId: data.stripeCustomerId || "",
+    stripeSubscriptionId: data.stripeSubscriptionId,
+    planId: (data.planId || "free") as PlanId,
+    status: (data.status || "active") as UserSubscription["status"],
+    currentPeriodStart: data.currentPeriodStart?.toISOString() || "",
+    currentPeriodEnd: data.currentPeriodEnd?.toISOString() || "",
     cancelAtPeriodEnd: false,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
   };
 }
 
@@ -170,36 +165,33 @@ export async function updateSubscription(
   const existing = await getUserSubscription(userId);
   if (!existing) return null;
 
-  const now = new Date().toISOString();
+  const updateData: Record<string, unknown> = {};
+  if (updates.planId !== undefined) updateData.planId = updates.planId;
+  if (updates.status !== undefined) updateData.status = updates.status;
+  if (updates.stripeSubscriptionId !== undefined) updateData.stripeSubscriptionId = updates.stripeSubscriptionId;
+  if (updates.currentPeriodStart !== undefined) updateData.currentPeriodStart = new Date(updates.currentPeriodStart);
+  if (updates.currentPeriodEnd !== undefined) updateData.currentPeriodEnd = new Date(updates.currentPeriodEnd);
+  updateData.updatedAt = new Date();
 
-  const { data } = await supabaseAdmin
-    .from("subscriptions")
-    .update({
-      plan_id: updates.planId,
-      status: updates.status,
-      stripe_subscription_id: updates.stripeSubscriptionId,
-      current_period_start: updates.currentPeriodStart,
-      current_period_end: updates.currentPeriodEnd,
-      updated_at: now,
-    })
-    .eq("user_id", userId)
-    .select()
-    .single();
+  const [data] = await db.update(subscriptions)
+    .set(updateData)
+    .where(eq(subscriptions.userId, userId))
+    .returning();
 
   if (!data) return null;
 
   return {
     id: data.id,
-    userId: data.user_id,
-    stripeCustomerId: data.stripe_customer_id,
-    stripeSubscriptionId: data.stripe_subscription_id,
-    planId: data.plan_id,
-    status: data.status,
-    currentPeriodStart: data.current_period_start,
-    currentPeriodEnd: data.current_period_end,
-    cancelAtPeriodEnd: data.cancel_at !== null,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    userId: data.userId,
+    stripeCustomerId: data.stripeCustomerId || "",
+    stripeSubscriptionId: data.stripeSubscriptionId,
+    planId: (data.planId || "free") as PlanId,
+    status: (data.status || "active") as UserSubscription["status"],
+    currentPeriodStart: data.currentPeriodStart?.toISOString() || "",
+    currentPeriodEnd: data.currentPeriodEnd?.toISOString() || "",
+    cancelAtPeriodEnd: data.cancelAt !== null,
+    createdAt: data.createdAt.toISOString(),
+    updatedAt: data.updatedAt.toISOString(),
   };
 }
 
