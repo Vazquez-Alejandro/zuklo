@@ -38,8 +38,12 @@ Las que necesitás para funcionalidad completa:
 - `DATABASE_URL` → Neon PostgreSQL connection string
 - `BETTER_AUTH_SECRET` → JWT secret (32+ chars)
 - `STRIPE_SECRET_KEY` → billing
+- `STRIPE_PREMIUM_PRICE_ID` → Stripe price ID for Premium plan
+- `STRIPE_PRO_PRICE_ID` → Stripe price ID for Pro plan
+- `STRIPE_WEBHOOK_SECRET` → Stripe webhook signing secret
 - `REDIS_URL` → background jobs (scraping automático)
 - `APIFY_TOKEN` → scraping de propiedades
+- `NEXT_PUBLIC_SENTRY_DSN` → Sentry error monitoring (optional)
 
 ## Build de producción
 
@@ -118,37 +122,37 @@ npm run test:watch  # watch mode
 - [x] Auth API route: signup, login, logout, get-user (src/app/api/auth/route.ts)
 - [x] All 7 lib files migrated from Supabase to Drizzle ORM
 - [x] All snake_case → camelCase fixed in Drizzle queries
-- [x] Build passing: 33 routes (17 static + 16 dynamic)
+- [x] Build passing: 35 routes (18 static + 17 dynamic)
 - [x] 87 tests still passing after migration
+- [x] Properties listing page with pagination, search, filters (/properties)
+- [x] Properties API with text search, pagination, sorting (/api/properties)
+- [x] Plan-based limits enforced on filters/alerts creation (Free: 2, Premium: ilimitado)
+- [x] Dashboard improved: stat cards, auto-refresh, quick actions, error states
+- [x] Stripe webhook handler: checkout.session.completed, payment_succeeded/failed
+- [x] Skeleton loaders detailed for all 8 loading pages + properties
+- [x] Responsive design improved across all pages (mobile, tablet, desktop)
+- [x] Sentry installed and configured (@sentry/nextjs)
+- [x] Empty states enhanced with SVG icons and contextual messages
+- [x] Sidebar updated with Properties nav entry
 
 ### 🔲 Pendiente - Configuración Externa (requiere servicios)
 - [ ] Create Neon account → get DATABASE_URL → run `npx drizzle-kit push`
 - [ ] Install Redis: `sudo apt install redis-server`
-- [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs
-- [ ] Configurar Stripe Webhooks en producción (endpoint: /api/webhook)
-- [ ] Configurar Firebase Cloud Messaging (proyecto + vapid key)
-- [ ] Crear cuenta Apify y configurar actors
+- [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs en .env.local
+- [ ] Configurar Stripe Webhooks en producción (endpoint: /api/webhook, events: checkout.session.completed, customer.subscription.*, invoice.*)
+- [ ] Configurar Firebase Cloud Messaging (proyecto + vapid key para push notifications)
+- [ ] Crear cuenta Apify y configurar actors para scraping
 - [ ] Deploy a Vercel (dominio, SSL, env vars en producción)
-- [ ] Instalar Sentry: `npm install @sentry/nextjs` y recrear configs
-
-### 🔲 Pendiente - Funcionalidad
-- [ ] Webhook handler funcional para Stripe (suscripciones reales)
-- [ ] Push notifications end-to-end (FCM -> BullMQ -> envío)
-- [ ] Scraping real con Apify (configurar actors, verificar output)
-- [ ] Paginación en listados de propiedades
-- [ ] Búsqueda de propiedades por texto libre
-- [ ] Filtros guardados con límite según plan (Free: 2, Premium: ilimitado)
-- [ ] Alertas con límite según plan (Free: 2, Premium: ilimitado)
-- [ ] Dashboard del inquilino: estadísticas, propiedades vistas, alerts activas
+- [ ] Configurar Sentry DSN en .env.local (NEXT_PUBLIC_SENTRY_DSN)
 - [ ] Conectar audit_logs a tabla real (requiere migración 005 en DB)
 
-### 🔲 Pendiente - UX/UI
-- [ ] Responsive testing completo (mobile, tablet, desktop)
-- [ ] Skeleton loaders más detallados para cada page
+### 🔲 Pendiente - Funcionalidad (requiere servicios externos)
+- [ ] Push notifications end-to-end (FCM → BullMQ → envío) — requiere Firebase
+- [ ] Scraping real con Apify (configurar actors, verificar output) — requiere Apify
+- [ ] Backups automáticos de DB (cron con scripts/backup.sh) — requiere Redis
 
 ### 🔲 Pendiente - Seguridad
 - [ ] RLS policies a nivel de usuario (unificar TEXT/UUID user_id)
 
 ### 🔲 Pendiente - DevOps / Infra
 - [ ] Analytics (Vercel Analytics o Plausible)
-- [ ] Backups automáticos de Supabase (cron con scripts/backup.sh)

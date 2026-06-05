@@ -5,6 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 import { PLANS, type PlanId } from "@/lib/stripe";
 import { useToast } from "@/components/toast";
+import { EmptyState } from "@/components/empty-state";
 
 interface BillingData {
   plan: {
@@ -132,7 +133,7 @@ export default function BillingPage() {
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Facturación</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Facturación</h1>
           <p className="text-slate-400 mt-1">Gestioná tu plan y suscripción</p>
         </div>
 
@@ -143,9 +144,17 @@ export default function BillingPage() {
         )}
 
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-red-300 text-sm">
-            {error}
-          </div>
+          <EmptyState
+            iconSvg={
+              <svg className="w-16 h-16 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+              </svg>
+            }
+            title="Error al cargar facturación"
+            description="No pudimos cargar tu información de facturación"
+            actionLabel="Reintentar"
+            onAction={() => { setError(""); setLoading(true); window.location.reload(); }}
+          />
         )}
 
         {!loading && billing && (
@@ -331,21 +340,23 @@ export default function BillingPage() {
                     Cancelar suscripción
                   </button>
                 ) : (
-                  <div className="mt-4 flex items-center gap-3">
+                  <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <p className="text-sm text-red-300">¿Estás seguro?</p>
-                    <button
-                      onClick={handleCancel}
-                      disabled={actionLoading === "cancel"}
-                      className="px-4 py-2 rounded-xl text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
-                    >
-                      {actionLoading === "cancel" ? "Cancelando..." : "Sí, cancelar"}
-                    </button>
-                    <button
-                      onClick={() => setShowCancelConfirm(false)}
-                      className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
-                    >
-                      No, volver
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={handleCancel}
+                        disabled={actionLoading === "cancel"}
+                        className="px-4 py-2 rounded-xl text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+                      >
+                        {actionLoading === "cancel" ? "Cancelando..." : "Sí, cancelar"}
+                      </button>
+                      <button
+                        onClick={() => setShowCancelConfirm(false)}
+                        className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
+                      >
+                        No, volver
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -39,3 +39,15 @@ body {
 .animate-slide-in {
   animation: slide-in 0.25s ease-out;
 }
+
+/* Smooth scrolling for mobile */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+}

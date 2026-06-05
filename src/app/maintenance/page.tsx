@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
+import { EmptyState } from "@/components/empty-state";
 
 interface Expense {
   id: string;
@@ -285,9 +286,9 @@ export default function MaintenancePage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Mantenimiento</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Mantenimiento</h1>
             <p className="text-slate-400 text-sm mt-1">
               Gestioná los gastos de mantenimiento de tus propiedades
             </p>
@@ -507,13 +508,17 @@ export default function MaintenancePage() {
                 <div className="text-slate-400">Cargando gastos...</div>
               </div>
             ) : expenses.length === 0 ? (
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-12 border border-slate-700 text-center">
-                <div className="text-4xl mb-3">🔧</div>
-                <p className="text-slate-300 font-medium">Sin gastos</p>
-                <p className="text-slate-400 text-sm mt-1">
-                  Registrá gastos de mantenimiento para este contrato
-                </p>
-              </div>
+              <EmptyState
+                iconSvg={
+                  <svg className="w-16 h-16 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.384 3.18A1.125 1.125 0 014.5 17.29V5.71a1.125 1.125 0 011.536-1.06l5.384 3.18m0 0l5.384-3.18A1.125 1.125 0 0118.375 5.71v11.58a1.125 1.125 0 01-1.536 1.06l-5.384-3.18m0-7.38v7.38" />
+                  </svg>
+                }
+                title="Sin gastos registrados"
+                description="Registrá gastos de mantenimiento para llevar el control"
+                actionLabel="Registrar gasto"
+                onAction={() => { setShowForm(true); setForm(emptyForm); }}
+              />
             ) : (
               <div className="space-y-3">
                 {expenses.map((expense) => (

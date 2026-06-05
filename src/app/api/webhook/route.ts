@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   constructWebhookEvent,
   getPlanByPriceId,
+  getStripe,
   type PlanId,
 } from "@/lib/stripe";
 import {
@@ -35,129 +36,218 @@ export async function POST(request: NextRequest) {
       signature
     );
 
-    switch (event.type) {
-      case "customer.subscription.created": {
-        const subscription = event.data.object;
-        const userId = subscription.metadata?.userId;
-        const customerId = subscription.customer as string;
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object;
+          const subscriptionId = session.subscription as string | null;
+          const userId = session.metadata?.userId;
 
-        if (!userId) {
-          console.error("No userId in subscription metadata");
+          if (!userId) {
+            console.error(JSON.stringify({ level: "error", event: event.type, message: "No userId in checkout session metadata" }));
+            break;
+          }
+
+          if (!subscriptionId) {
+            console.error(JSON.stringify({ level: "error", event: event.type, userId, message: "No subscription ID on checkout session" }));
+            break;
+          }
+
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const customerId = subscription.customer as string;
+          const priceId = subscription.items.data[0]?.price?.id || "";
+          const planId = getPlanByPriceId(priceId) || "free";
+
+          const periodStart = new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
+          ).toISOString();
+          const periodEnd = new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
+          ).toISOString();
+
+          await createSubscription(
+            userId,
+            customerId,
+            subscriptionId,
+            planId as PlanId,
+            subscription.status as "active" | "canceled" | "past_due" | "trialing",
+            periodStart,
+            periodEnd
+          );
+
+          console.log(JSON.stringify({ level: "info", event: event.type, userId, planId, subscriptionId, message: "Checkout completed, subscription activated" }));
           break;
         }
 
-        const priceId =
-          subscription.items.data[0]?.price?.id || "";
-        const planId = getPlanByPriceId(priceId) || "free";
+        case "customer.subscription.created": {
+          const subscription = event.data.object;
+          const userId = subscription.metadata?.userId;
 
-        const periodStart = new Date(
-          (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
-        ).toISOString();
-        const periodEnd = new Date(
-          (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
-        ).toISOString();
+          if (!userId) {
+            console.error(JSON.stringify({ level: "error", event: event.type, message: "No userId in subscription metadata" }));
+            break;
+          }
 
-        await createSubscription(
-          userId,
-          customerId,
-          subscription.id,
-          planId as PlanId,
-          subscription.status as "active" | "canceled" | "past_due" | "trialing",
-          periodStart,
-          periodEnd
-        );
+          const customerId = subscription.customer as string;
+          const priceId = subscription.items.data[0]?.price?.id || "";
+          const planId = getPlanByPriceId(priceId) || "free";
 
-        console.log(`Subscription created for user ${userId}: ${planId}`);
-        break;
-      }
+          const periodStart = new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
+          ).toISOString();
+          const periodEnd = new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
+          ).toISOString();
 
-      case "customer.subscription.updated": {
-        const subscription = event.data.object;
-        const userId = subscription.metadata?.userId;
+          await createSubscription(
+            userId,
+            customerId,
+            subscription.id,
+            planId as PlanId,
+            subscription.status as "active" | "canceled" | "past_due" | "trialing",
+            periodStart,
+            periodEnd
+          );
 
-        if (!userId) {
-          console.error("No userId in subscription metadata");
+          console.log(JSON.stringify({ level: "info", event: event.type, userId, planId, message: "Subscription created" }));
           break;
         }
 
-        const priceId =
-          subscription.items.data[0]?.price?.id || "";
-        const planId = getPlanByPriceId(priceId) || "free";
+        case "customer.subscription.updated": {
+          const subscription = event.data.object;
+          const userId = subscription.metadata?.userId;
 
-        const periodStart = new Date(
-          (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
-        ).toISOString();
-        const periodEnd = new Date(
-          (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
-        ).toISOString();
+          if (!userId) {
+            console.error(JSON.stringify({ level: "error", event: event.type, message: "No userId in subscription metadata" }));
+            break;
+          }
 
-        await updateSubscription(userId, {
-          planId: planId as PlanId,
-          status: subscription.status as "active" | "canceled" | "past_due" | "trialing",
-          currentPeriodStart: periodStart,
-          currentPeriodEnd: periodEnd,
-          cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
-          stripeSubscriptionId: subscription.id,
-        });
+          const priceId = subscription.items.data[0]?.price?.id || "";
+          const planId = getPlanByPriceId(priceId) || "free";
 
-        console.log(`Subscription updated for user ${userId}: ${planId} (${subscription.status})`);
-        break;
-      }
+          const periodStart = new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
+          ).toISOString();
+          const periodEnd = new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
+          ).toISOString();
 
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object;
-        const userId = subscription.metadata?.userId;
+          await updateSubscription(userId, {
+            planId: planId as PlanId,
+            status: subscription.status as "active" | "canceled" | "past_due" | "trialing",
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+            stripeSubscriptionId: subscription.id,
+          });
 
-        if (!userId) {
-          console.error("No userId in subscription metadata");
+          console.log(JSON.stringify({ level: "info", event: event.type, userId, planId, status: subscription.status, message: "Subscription updated" }));
           break;
         }
 
-        await updateSubscription(userId, {
-          planId: "free",
-          status: "canceled",
-          stripeSubscriptionId: null,
-        });
+        case "customer.subscription.deleted": {
+          const subscription = event.data.object;
+          const userId = subscription.metadata?.userId;
 
-        console.log(`Subscription canceled for user ${userId}`);
-        break;
-      }
+          if (!userId) {
+            console.error(JSON.stringify({ level: "error", event: event.type, message: "No userId in subscription metadata" }));
+            break;
+          }
 
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object;
-        const subscriptionId = (invoice as unknown as Record<string, unknown>).subscription as string;
+          await updateSubscription(userId, {
+            planId: "free",
+            status: "canceled",
+            stripeSubscriptionId: null,
+          });
 
-        if (subscriptionId) {
-          console.log(`Payment succeeded for subscription ${subscriptionId}`);
+          console.log(JSON.stringify({ level: "info", event: event.type, userId, message: "Subscription canceled" }));
+          break;
         }
-        break;
-      }
 
-      case "invoice.payment_failed": {
-        const invoice = event.data.object;
-        const subscriptionId = (invoice as unknown as Record<string, unknown>).subscription as string;
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object;
+          const subscriptionId = (invoice as unknown as Record<string, unknown>).subscription as string;
 
-        if (subscriptionId) {
-          console.log(`Payment failed for subscription ${subscriptionId}`);
+          if (!subscriptionId) {
+            console.log(JSON.stringify({ level: "info", event: event.type, message: "Invoice without subscription (one-time payment), skipping" }));
+            break;
+          }
+
+          const periodStart = new Date(
+            (invoice as unknown as Record<string, unknown>).period_start as number * 1000
+          ).toISOString();
+          const periodEnd = new Date(
+            (invoice as unknown as Record<string, unknown>).period_end as number * 1000
+          ).toISOString();
+
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const userId = subscription.metadata?.userId;
+
+          if (userId) {
+            await updateSubscription(userId, {
+              currentPeriodStart: periodStart,
+              currentPeriodEnd: periodEnd,
+              status: "active",
+            });
+            console.log(JSON.stringify({ level: "info", event: event.type, userId, subscriptionId, message: "Payment succeeded, subscription period updated" }));
+          } else {
+            console.error(JSON.stringify({ level: "error", event: event.type, subscriptionId, message: "No userId in subscription metadata for invoice" }));
+          }
+          break;
         }
-        break;
-      }
 
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
+        case "invoice.payment_failed": {
+          const invoice = event.data.object;
+          const subscriptionId = (invoice as unknown as Record<string, unknown>).subscription as string;
+
+          if (!subscriptionId) {
+            console.log(JSON.stringify({ level: "info", event: event.type, message: "Failed invoice without subscription, skipping" }));
+            break;
+          }
+
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const userId = subscription.metadata?.userId;
+
+          if (userId) {
+            await updateSubscription(userId, {
+              status: "past_due",
+            });
+            console.log(JSON.stringify({ level: "info", event: event.type, userId, subscriptionId, message: "Payment failed, subscription marked past_due" }));
+          } else {
+            console.error(JSON.stringify({ level: "error", event: event.type, subscriptionId, message: "No userId in subscription metadata for failed invoice" }));
+          }
+          break;
+        }
+
+        default:
+          console.log(JSON.stringify({ level: "info", event: event.type, message: "Unhandled event type" }));
+      }
+    } catch (eventError) {
+      console.error(JSON.stringify({
+        level: "error",
+        event: event.type,
+        error: eventError instanceof Error ? eventError.message : String(eventError),
+        stack: eventError instanceof Error ? eventError.stack : undefined,
+        message: "Error processing webhook event",
+      }));
     }
 
     const duration = Date.now() - start;
     logRequest("POST", "/api/webhook", 200, duration);
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error(JSON.stringify({
+      level: "error",
+      message: "Webhook verification failed",
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    }));
     const duration = Date.now() - start;
     logRequest("POST", "/api/webhook", 500, duration);
-    return NextResponse.json(
-      { error: "Webhook handler failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ received: true });
   }
 }
 
@@ -167,6 +257,7 @@ export async function GET() {
   return NextResponse.json({
     message: "Stripe webhook endpoint is active",
     supportedEvents: [
+      "checkout.session.completed",
       "customer.subscription.created",
       "customer.subscription.updated",
       "customer.subscription.deleted",

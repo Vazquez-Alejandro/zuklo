@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
+import { EmptyState } from "@/components/empty-state";
 
 interface Profile {
   id: string;
@@ -228,9 +229,9 @@ export default function ProfilePage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Mi Perfil</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Mi Perfil</h1>
             <p className="text-slate-400 text-sm mt-1">
               {profile
                 ? "Gestioná tu información de inquilino"
@@ -326,8 +327,23 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Empty State - No Profile */}
+        {!profile && !editing && (
+          <EmptyState
+            iconSvg={
+              <svg className="w-16 h-16 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+            }
+            title="Sin perfil de inquilino"
+            description="Completá tu perfil para presentarte a los propietarios"
+            actionLabel="Crear perfil"
+            onAction={() => setEditing(true)}
+          />
+        )}
+
         {/* Profile Form */}
-        {(!profile || editing) && (
+        {editing && (
           <div className="space-y-6">
             {/* Personal Info */}
             <Section title="Datos personales">
@@ -558,7 +574,7 @@ export default function ProfilePage() {
             </Section>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
               {editing && (
                 <button
                   onClick={() => {

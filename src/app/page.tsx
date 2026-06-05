@@ -55,27 +55,27 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 pt-20 pb-28 text-center">
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+      <section className="max-w-6xl mx-auto px-4 pt-16 sm:pt-20 pb-20 sm:pb-28 text-center">
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
           Encontrá tu próximo{" "}
           <span className="text-emerald-400">alquiler</span>
         </h1>
-        <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
+        <p className="text-base sm:text-xl text-slate-400 mb-8 sm:mb-10 max-w-2xl mx-auto">
           Buscamos automáticamente en 8 portales inmobiliarios y te avisamos cuando aparece la propiedad perfecta para vos.
         </p>
-        <div className="flex items-center justify-center gap-4">
-          <Link href="/signup" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-3.5 rounded-xl text-lg transition-colors">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link href="/signup" className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-3.5 rounded-xl text-lg transition-colors text-center">
             Comenzá gratis
           </Link>
-          <Link href="/login" className="border border-slate-600 hover:border-slate-500 text-slate-300 font-semibold px-8 py-3.5 rounded-xl text-lg transition-colors">
+          <Link href="/login" className="w-full sm:w-auto border border-slate-600 hover:border-slate-500 text-slate-300 font-semibold px-8 py-3.5 rounded-xl text-lg transition-colors text-center">
             Ya tengo cuenta
           </Link>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-14">¿Cómo funciona?</h2>
+      <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10 sm:mb-14">¿Cómo funciona?</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             { step: "1", title: "Creá tus alertas", desc: "Definí precio, ubicación, cantidad de ambientes y lo que necesites." },
@@ -94,9 +94,9 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-14">Todo lo que necesitás</h2>
-        <div className="grid md:grid-cols-3 gap-6">
+      <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10 sm:mb-14">Todo lo que necesitás</h2>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
           {FEATURES.map((f) => (
             <div key={f.title} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6">
               <div className="text-3xl mb-4">{f.icon}</div>
@@ -108,9 +108,9 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-4">Planes y precios</h2>
-        <p className="text-slate-400 text-center mb-14">Empezá gratis, upgrade cuando quieras</p>
+      <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-4">Planes y precios</h2>
+        <p className="text-slate-400 text-center mb-10 sm:mb-14">Empezá gratis, upgrade cuando quieras</p>
         <div className="grid md:grid-cols-3 gap-8">
           {PLANS.map((plan) => (
             <div
@@ -160,7 +160,7 @@ export default function LandingPage() {
           <div className="text-2xl font-bold">
             <span className="text-emerald-400">Zuklo</span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-slate-400">
             <Link href="/login" className="hover:text-white transition-colors">Iniciar sesión</Link>
             <Link href="/signup" className="hover:text-white transition-colors">Registrate</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Términos</Link>

@@ -81,7 +81,7 @@ export default function SettingsPage() {
     <DashboardLayout>
       <div className="max-w-3xl mx-auto space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Configuración</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Configuración</h1>
           <p className="text-slate-400 mt-1">Administrá tu cuenta y preferencias</p>
         </div>
 
@@ -254,20 +254,22 @@ export default function SettingsPage() {
               Eliminar cuenta
             </button>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <p className="text-sm text-red-300">¿Estás completamente seguro?</p>
-              <button
-                disabled
-                className="px-5 py-2.5 rounded-xl text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
-              >
-                Sí, eliminar mi cuenta
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-5 py-2.5 rounded-xl text-sm font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
-              >
-                Cancelar
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  disabled
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+                >
+                  Sí, eliminar mi cuenta
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           )}
         </div>

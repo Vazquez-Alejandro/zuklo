@@ -52,16 +52,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold">
             <span className="text-emerald-400">Zuklo</span>
           </h1>
           <p className="text-slate-400 mt-2">Iniciá sesión en tu cuenta</p>
         </div>
 
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700">
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-slate-700">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm">

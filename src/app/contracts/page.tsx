@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
+import { EmptyState } from "@/components/empty-state";
 
 interface ContractSummary {
   daysUntilEnd: number;
@@ -233,9 +234,9 @@ export default function ContractsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Contratos</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Contratos</h1>
             <p className="text-slate-400 text-sm mt-1">
               Gestioná tus contratos de alquiler
             </p>
@@ -526,13 +527,17 @@ export default function ContractsPage() {
             <div className="text-slate-400">Cargando contratos...</div>
           </div>
         ) : contracts.length === 0 && !showForm ? (
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-12 border border-slate-700 text-center">
-            <div className="text-4xl mb-3">📄</div>
-            <p className="text-slate-300 font-medium">Sin contratos</p>
-            <p className="text-slate-400 text-sm mt-1">
-              Creá tu primer contrato de alquiler para comenzar a gestionarlo
-            </p>
-          </div>
+          <EmptyState
+            iconSvg={
+              <svg className="w-16 h-16 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            }
+            title="Sin contratos"
+            description="Creá tu primer contrato para gestionar tus alquileres"
+            actionLabel="Crear contrato"
+            onAction={() => { setShowForm(true); setSelectedId(null); }}
+          />
         ) : (
           <div className="space-y-3">
             {contracts.map(({ contract, summary }) => (

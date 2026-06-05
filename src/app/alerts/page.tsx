@@ -169,9 +169,9 @@ export default function AlertsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Alertas y Filtros</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">Alertas y Filtros</h1>
             <p className="text-slate-400 mt-1">Configurá alertas para encontrar propiedades ideales</p>
           </div>
           <button
@@ -338,7 +338,7 @@ export default function AlertsPage() {
               <span className="text-sm text-slate-300">Notificaciones habilitadas</span>
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setForm(emptyForm); }}
