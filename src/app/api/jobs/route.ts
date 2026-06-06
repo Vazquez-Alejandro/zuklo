@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase";
-import {
-  scrapingQueue,
-  scheduleRecurringScrape,
-  addScrapePortalJob,
-} from "@/lib/queue";
-import { getAllPortals } from "@/lib/apify";
+import { scrapePortal, getAllPortals } from "@/lib/apify";
+import { deduplicateProperties, generatePropertyHash } from "@/lib/dedup";
+import { db } from "@/lib/db";
+import { properties } from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";
 
@@ -19,59 +18,73 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, portal, intervalMinutes } = body;
+    const { action, portal } = body;
 
-    switch (action) {
-      case "start-recurring": {
-        const interval = intervalMinutes || 15;
-        await scheduleRecurringScrape(interval);
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/jobs", 200, duration, user.id);
-        return NextResponse.json({
-          status: "scheduled",
-          intervalMinutes: interval,
-        });
-      }
-
-      case "stop-recurring": {
-        const jobs = await scrapingQueue.getJobSchedulers();
-        for (const job of jobs) {
-          if (job.name === "recurring-scrape-all" && job.id) {
-            await scrapingQueue.removeJobScheduler(job.id);
-          }
-        }
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/jobs", 200, duration, user.id);
-        return NextResponse.json({ status: "stopped" });
-      }
-
-      case "scrape-portal": {
-        if (!portal) {
-          const duration = Date.now() - start;
-          logRequest("POST", "/api/jobs", 400, duration, user.id);
-          return NextResponse.json(
-            { error: "Portal slug is required" },
-            { status: 400 }
-          );
-        }
-        const job = await addScrapePortalJob(portal);
-        const duration = Date.now() - start;
-        logRequest("POST", "/api/jobs", 200, duration, user.id);
-        return NextResponse.json({
-          jobId: job.id,
-          portal,
-          status: "queued",
-        });
-      }
-
-      default:
+    if (action === "scrape-portal") {
+      if (!portal) {
         const duration = Date.now() - start;
         logRequest("POST", "/api/jobs", 400, duration, user.id);
         return NextResponse.json(
-          { error: "Unknown action" },
+          { error: "Portal slug is required" },
           { status: 400 }
         );
+      }
+
+      const scraped = await scrapePortal(portal, 50);
+      const newProperties = deduplicateProperties(scraped);
+
+      let savedCount = 0;
+      for (const prop of newProperties) {
+        const existing = await db.select().from(properties)
+          .where(eq(properties.portalId, prop.portalId))
+          .limit(1);
+
+        if (existing.length === 0) {
+          const contentHash = generatePropertyHash(prop);
+          await db.insert(properties).values({
+            portal: prop.portal,
+            portalId: prop.portalId,
+            url: prop.url,
+            title: prop.title,
+            description: prop.description || "",
+            price: String(prop.price),
+            currency: prop.currency || "ARS",
+            address: prop.location?.address || "",
+            city: prop.location?.city || "",
+            state: prop.location?.state || "",
+            country: prop.location?.country || "AR",
+            zip: prop.location?.zip || "",
+            lat: prop.location?.lat,
+            lng: prop.location?.lng,
+            bedrooms: prop.features?.bedrooms || 0,
+            bathrooms: prop.features?.bathrooms || 0,
+            area: String(prop.features?.area || 0),
+            areaUnit: prop.features?.areaUnit || "m2",
+            parkingSpaces: prop.features?.parkingSpaces || 0,
+            furnished: prop.features?.furnished,
+            petFriendly: prop.features?.petFriendly,
+            images: prop.images || [],
+            mainImage: prop.images?.[0] || null,
+            publishedAt: prop.publishedAt ? new Date(prop.publishedAt) : null,
+            contentHash,
+          });
+          savedCount++;
+        }
+      }
+
+      const duration = Date.now() - start;
+      logRequest("POST", "/api/jobs", 200, duration, user.id);
+      return NextResponse.json({
+        portal,
+        scraped: scraped.length,
+        new: savedCount,
+        status: "completed",
+      });
     }
+
+    const duration = Date.now() - start;
+    logRequest("POST", "/api/jobs", 400, duration, user.id);
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {
       const duration = Date.now() - start;
@@ -81,7 +94,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - start;
     logRequest("POST", "/api/jobs", 500, duration);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: e instanceof Error ? e.message : "Internal server error" },
       { status: 500 }
     );
   }
@@ -96,37 +109,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
     }
 
-    const jobs = await scrapingQueue.getJobs(
-      ["waiting", "active", "completed", "failed"],
-      0,
-      20
-    );
-
-    const schedulers = await scrapingQueue.getJobSchedulers();
+    const recentProperties = await db.select().from(properties)
+      .orderBy(desc(properties.createdAt))
+      .limit(20);
 
     const portals = getAllPortals().map((p) => ({
       name: p.name,
       slug: p.slug,
     }));
 
+    const portalCounts: Record<string, number> = {};
+    for (const p of recentProperties) {
+      portalCounts[p.portal] = (portalCounts[p.portal] || 0) + 1;
+    }
+
     const duration = Date.now() - start;
     logRequest("GET", "/api/jobs", 200, duration, user.id);
     return NextResponse.json({
-      jobs: jobs.map((job) => ({
-        id: job.id,
-        name: job.name,
-        data: job.data,
-        progress: job.progress,
-        status: job.progress ? "completed" : "active",
-        timestamp: job.timestamp,
+      jobs: recentProperties.map((p) => ({
+        id: p.id,
+        name: `${p.portal}: ${p.title}`,
+        data: { url: p.url, price: p.price, city: p.city },
+        progress: 100,
+        status: "completed",
+        timestamp: p.createdAt?.toISOString(),
       })),
-      schedulers: schedulers.map((s) => ({
-        id: s.id,
-        name: s.name,
-        pattern: s.pattern,
-        every: s.every,
-      })),
+      schedulers: [],
       portals,
+      propertyCount: recentProperties.length,
+      portalCounts,
     });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {

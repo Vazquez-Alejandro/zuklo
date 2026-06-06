@@ -54,13 +54,16 @@ npm start
 
 ## Arquitectura
 
-- **Frontend**: Next.js 16 + TypeScript + Tailwind CSS
+- **Frontend**: Next.js 16 + TypeScript + Tailwind CSS v4
 - **Auth**: Custom JWT (jose library) + Drizzle ORM
-- **DB**: Neon PostgreSQL + Drizzle ORM (RLS via application-level auth)
+- **DB**: Neon PostgreSQL + Drizzle ORM (15 tablas)
 - **Payments**: Stripe (3 planes: Free/Premium/Pro)
-- **Scraping**: Apify + BullMQ (8 portales inmobiliarios)
-- **Notifications**: Firebase Cloud Messaging
-- **PDF**: Puppeteer
+- **Scraping**: Apify (Zonaprop, Argenprop) + seed data
+- **Cola de jobs**: BullMQ + Redis
+- **Monitoreo**: Sentry
+- **PDF**: Puppeteer (fallback HTML)
+- **Hosting**: Vercel
+- **CI/CD**: GitHub Actions
 
 ## Tests
 
@@ -134,25 +137,52 @@ npm run test:watch  # watch mode
 - [x] Sentry installed and configured (@sentry/nextjs)
 - [x] Empty states enhanced with SVG icons and contextual messages
 - [x] Sidebar updated with Properties nav entry
+- [x] Seeded 13 propiedades argentinas reales en DB (scripts/seed.ts)
+- [x] Apify actors actualizados: Zonaprop (`ocrad/zonaprop-property-scraper`) + Argenprop (`ecomscrape/argenprop-property-search-scraper`)
+- [x] Scrape API graceful degradation — fallback a DB cuando Apify falla
+- [x] Deploy Vercel: https://zuklo.vercel.app
+- [x] Todas las env vars configuradas en Vercel (Neon, Stripe, Apify, JWT)
+- [x] README.md completo con documentación real del proyecto
+
+### 🔲 Pendiente - Crítico (bloquea lanzamiento)
+- [ ] **Fix auth**: login no verifica password, signup no hashea — cualquier password funciona
+- [ ] **Página detalle de propiedad** `/properties/[id]` — no existe, solo cards con link externo
+- [ ] **Reset de password** — stub que dice "no disponible aún", falta flujo completo con email
+- [ ] **Verificación de email** — campo existe en DB pero nunca se usa
+- [ ] **Páginas éxito/cancel de Stripe** — redirigen a 404 después de pagar
+- [ ] **Cambio de password** en settings — endpoint no existe
+- [ ] **Eliminación de cuenta** — botón deshabilitado, sin API
+
+### 🔲 Pendiente - Alto (debería tener para lanzar)
+- [ ] **Favoritos/Guardados** — sin tabla, sin API, sin UI
+- [ ] **Contactar propietario** — sin formulario ni messaging
+- [ ] **Centro de notificaciones** — API existe, falta la página
+- [ ] **SEO por página** — sin metadata, sitemap, robots, OG
+- [ ] **Componentes reutilizables** — Pagination, FormField inline
+- [ ] **Preferencias notificaciones** — en settings es solo estado local, no persiste
 
 ### 🔲 Pendiente - Configuración Externa (requiere servicios)
-- [ ] Create Neon account → get DATABASE_URL → run `npx drizzle-kit push`
-- [ ] Install Redis: `sudo apt install redis-server`
 - [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs en .env.local
 - [ ] Configurar Stripe Webhooks en producción (endpoint: /api/webhook, events: checkout.session.completed, customer.subscription.*, invoice.*)
 - [ ] Configurar Firebase Cloud Messaging (proyecto + vapid key para push notifications)
-- [ ] Crear cuenta Apify y configurar actors para scraping
 - [ ] Deploy a Vercel (dominio, SSL, env vars en producción)
 - [ ] Configurar Sentry DSN en .env.local (NEXT_PUBLIC_SENTRY_DSN)
 - [ ] Conectar audit_logs a tabla real (requiere migración 005 en DB)
 
-### 🔲 Pendiente - Funcionalidad (requiere servicios externos)
-- [ ] Push notifications end-to-end (FCM → BullMQ → envío) — requiere Firebase
-- [ ] Scraping real con Apify (configurar actors, verificar output) — requiere Apify
-- [ ] Backups automáticos de DB (cron con scripts/backup.sh) — requiere Redis
-
 ### 🔲 Pendiente - Seguridad
 - [ ] RLS policies a nivel de usuario (unificar TEXT/UUID user_id)
 
-### 🔲 Pendiente - DevOps / Infra
-- [ ] Analytics (Vercel Analytics o Plausible)
+### 🔲 Pendiente - Medio (post-lanzamiento)
+- [ ] Panel admin
+- [ ] Onboarding wizard para nuevos usuarios
+- [ ] Test de componentes y API routes
+- [ ] Configurar imágenes externas en next.config.ts (dominios de portales)
+- [ ] Limpiar dependencia `@supabase/supabase-js` (ya no se usa)
+- [ ] Renombrar `src/lib/supabase.ts` (es wrapper de auth.ts)
+
+### 🔲 Pendiente - Bajo (futuro)
+- [ ] Analytics dashboard (Vercel Analytics o Plausible)
+- [ ] API keys para plan Pro
+- [ ] Multi-idioma
+- [ ] PWA / manifest.json
+- [ ] E2E tests (Playwright)

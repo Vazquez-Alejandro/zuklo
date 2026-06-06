@@ -85,7 +85,7 @@ export default function DashboardPage() {
 
       if (billingRes.ok) {
         const data = await billingRes.json();
-        setPlanName(data.plan ?? "Free");
+        setPlanName(data.plan?.plan ?? data.subscription?.planId ?? "Free");
       }
     } catch {
       setError("Error al cargar los datos. Verificá tu conexión.");
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       if (!res.ok) {
         setScrapeMsg(data.error || "Error al scrapear");
       } else {
-        setScrapeMsg(`Scrape iniciado en ${data.portal} (ID: ${data.jobId})`);
+        setScrapeMsg(`Scrape completado en ${data.portal}: ${data.scraped} encontradas, ${data.new} nuevas`);
         setScrapeUrl("");
       }
     } catch {

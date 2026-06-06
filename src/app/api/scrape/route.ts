@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase";
-import { addScrapeUrlJob, scrapingQueue } from "@/lib/queue";
-import { detectPortal, getAllPortals } from "@/lib/apify";
+import { scrapeUrl, detectPortal, getAllPortals } from "@/lib/apify";
+import { deduplicateProperties, generatePropertyHash } from "@/lib/dedup";
+import { db } from "@/lib/db";
+import { properties } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";
 
@@ -36,14 +39,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const job = await addScrapeUrlJob(url);
+    let scraped: Awaited<ReturnType<typeof scrapeUrl>> = [];
+    let scrapeError: string | null = null;
+    try {
+      scraped = await scrapeUrl(url);
+    } catch (scrapeErr: any) {
+      scrapeError = scrapeErr?.message || "Scraping failed";
+    }
+
+    const newProperties = scrapeError ? [] : deduplicateProperties(scraped);
+
+    let savedCount = 0;
+    for (const prop of newProperties) {
+      const existing = await db.select().from(properties)
+        .where(eq(properties.portalId, prop.portalId))
+        .limit(1);
+
+      if (existing.length === 0) {
+        const contentHash = generatePropertyHash(prop);
+        await db.insert(properties).values({
+          portal: prop.portal,
+          portalId: prop.portalId,
+          url: prop.url,
+          title: prop.title,
+          description: prop.description || "",
+          price: String(prop.price),
+          currency: prop.currency || "ARS",
+          address: prop.location?.address || "",
+          city: prop.location?.city || "",
+          state: prop.location?.state || "",
+          country: prop.location?.country || "AR",
+          zip: prop.location?.zip || "",
+          lat: prop.location?.lat,
+          lng: prop.location?.lng,
+          bedrooms: prop.features?.bedrooms || 0,
+          bathrooms: prop.features?.bathrooms || 0,
+          area: String(prop.features?.area || 0),
+          areaUnit: prop.features?.areaUnit || "m2",
+          parkingSpaces: prop.features?.parkingSpaces || 0,
+          furnished: prop.features?.furnished,
+          petFriendly: prop.features?.petFriendly,
+          images: prop.images || [],
+          mainImage: prop.images?.[0] || null,
+          publishedAt: prop.publishedAt ? new Date(prop.publishedAt) : null,
+          contentHash,
+        });
+        savedCount++;
+      }
+    }
 
     const duration = Date.now() - start;
-    logRequest("POST", "/api/scrape", 200, duration, user.id);
+    logRequest("POST", "/api/scrape", scrapeError ? 207 : 200, duration, user.id);
     return NextResponse.json({
-      jobId: job.id,
       portal: portal.name,
-      status: "queued",
+      scraped: scraped.length,
+      new: savedCount,
+      duplicates: scraped.length - savedCount,
+      status: scrapeError ? "degraded" : "completed",
+      ...(scrapeError ? { scrapeError, message: "Apify scraping unavailable. Showing seeded properties from DB." } : {}),
     });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {
@@ -54,7 +107,7 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - start;
     logRequest("POST", "/api/scrape", 500, duration);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: e instanceof Error ? e.message : "Internal server error" },
       { status: 500 }
     );
   }
@@ -75,19 +128,9 @@ export async function GET(request: NextRequest) {
       urlPatterns: p.urlPatterns.map((r) => r.source),
     }));
 
-    const recentJobs = await scrapingQueue.getJobs(["completed", "failed", "active"], 0, 10);
-
     const duration = Date.now() - start;
     logRequest("GET", "/api/scrape", 200, duration, user.id);
-    return NextResponse.json({
-      portals,
-      recentJobs: recentJobs.map((job) => ({
-        id: job.id,
-        data: job.data,
-        progress: job.progress,
-        timestamp: job.timestamp,
-      })),
-    });
+    return NextResponse.json({ portals });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {
       const duration = Date.now() - start;
