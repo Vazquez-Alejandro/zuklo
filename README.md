@@ -6,42 +6,49 @@ Plataforma de búsqueda y gestión de alquileres de propiedades para Argentina. 
 
 ## Stack Tecnológico
 
-| Capa | Tecnología |
-|------|-----------|
-| Framework | [Next.js 16](https://nextjs.org) (App Router) |
-| Lenguaje | TypeScript |
-| UI | [Tailwind CSS v4](https://tailwindcss.com) |
-| Base de datos | [Neon PostgreSQL](https://neon.tech) (serverless) |
-| ORM | [Drizzle ORM](https://orm.drizzle.team) |
-| Autenticación | JWT custom con [jose](https://github.com/panva/jose) |
-| Pagos | [Stripe](https://stripe.com) (Checkout, Webhooks, Customer Portal) |
-| Scraping | [Apify](https://apify.com) (Zonaprop, Argenprop) |
-| Cola de jobs | [BullMQ](https://bullmq.io) + Redis |
-| Monitoreo | [Sentry](https://sentry.io) |
-| CI/CD | [GitHub Actions](https://github.com/features/actions) |
-| Hosting | [Vercel](https://vercel.com) |
+| Capa | Tecnología | Notas |
+|------|-----------|-------|
+| Framework | [Next.js 16](https://nextjs.org) | App Router, Turbopack |
+| Lenguaje | TypeScript | |
+| UI | [Tailwind CSS v4](https://tailwindcss.com) | |
+| Base de datos | [Neon PostgreSQL](https://neon.tech) | Serverless, tier gratuito |
+| ORM | [Drizzle ORM](https://orm.drizzle.team) | 16 tablas |
+| Autenticación | JWT custom con [jose](https://github.com/panva/jose) | Sesiones de 7 días |
+| Pagos | [Stripe](https://stripe.com) | Checkout, Webhooks, Customer Portal |
+| Email | [Resend](https://resend.com) | Transaccional (verificación, reset, contacto) |
+| Scraping | [Apify](https://apify.com) + [Cheerio](https://cheerio.js.org) | Fallback automático |
+| Cola de jobs | [BullMQ](https://bullmq.io) + Redis | |
+| Monitoreo | [Sentry](https://sentry.io) | Error tracking |
+| CI/CD | [GitHub Actions](https://github.com/features/actions) | Lint, test, build |
+| Hosting | [Vercel](https://vercel.com) | Deploy automático |
+| PDF | [Puppeteer](https://pptr.dev) | Fallback HTML |
 
 ## Funcionalidades
 
 ### Implementadas
 
-- **Autenticación** — Login, signup, sesiones JWT (7 días), middleware de protección de rutas, verificación de email, reset de password
+- **Autenticación** — Login, signup, sesiones JWT (7 días), middleware de protección de rutas, verificación de email, reset de password con email
 - **Dashboard** — Stat cards, scraping rápido, grilla de portales, auto-refresh
 - **Búsqueda de propiedades** — Búsqueda por texto, filtros avanzados (barrio, precio, moneda, dormitorios, mascotas), paginación
+- **Detalle de propiedad** — Página completa con features, descripción, link al portal, botón guardar, contacto al propietario
+- **Favoritos** — Guardar propiedades, ver listado de guardadas
+- **Contactar propietario** — Formulario de contacto con envío de email vía Resend
 - **Filtros/Alertas** — CRUD de filtros de búsqueda con límites por plan (Free: 2, Premium: ilimitado)
+- **Notificaciones** — Centro de notificaciones con historial de alertas
 - **Contratos** — Lifecycle completo: creación, activación, visualización, eliminación
 - **Gastos de mantenimiento** — CRUD por contrato, categorías (plomería, electricidad, etc.), estados (pendiente/aprobado/reembolsado)
 - **Perfil de inquilino** — Datos personales, empleo, ingresos, garantes, historial
 - **Billing** — 3 planes (Free/Premium/Pro), checkout Stripe, portal de gestión, webhooks
-- **Scraping** — Scraping de URLs vía Apify, deduplicación, guardado en DB
-- **Perfiles de tenant** — Wizard completo de datos del inquilino
+- **Scraping** — Scraping de URLs vía Apify con fallback a Cheerio, deduplicación, guardado en DB
 - **PDF** — Generación de PDF del perfil de inquilino (Puppeteer con fallback HTML)
 - **Índices IPC/ICL** — Fetch de datos oficiales de indexación con fallback
 
 ### Seguridad
 
-- Rate limiting en 13 API routes (por IP y usuario)
+- Rate limiting en todas las API routes (por IP y usuario)
+- Rate limiting estricto en auth: 5 intentos de login por email cada 15 minutos
 - CSP headers + security headers (X-Frame-Options, X-Content-Type-Options, etc.)
+- Password hashing con SHA-256 + salt + timingSafeEqual
 - Input sanitization
 - CSRF protection
 - Structured logging en todas las API routes
@@ -107,8 +114,9 @@ La app arranca en [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Sí | Stripe publishable key |
 | `STRIPE_PRICE_PREMIUM_MONTHLY` | Sí | Price ID del plan Premium |
 | `STRIPE_PRICE_PRO_MONTHLY` | Sí | Price ID del plan Pro |
+| `RESEND_API_KEY` | Sí | API key de Resend (emails transaccionales) |
 | `REDIS_URL` | No | Redis URL (solo para BullMQ) |
-| `APIFY_TOKEN` | No | Apify API token (para scraping) |
+| `APIFY_TOKEN` | No | Apify API token (scraping premium) |
 | `NEXT_PUBLIC_APP_URL` | No | URL de la app (default: http://localhost:3000) |
 | `NEXT_PUBLIC_SENTRY_DSN` | No | Sentry DSN |
 
@@ -204,8 +212,11 @@ src/
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET/POST | `/api/auth` | Public/Protected | Login, signup, logout, get-user |
+| GET/POST | `/api/auth` | Public/Protected | Login, signup, logout, get-user, forgot-password, reset-password, update-password, delete-account, verify-email |
 | GET | `/api/properties` | Protected | Buscar/filtrar propiedades |
+| GET | `/api/properties/[id]` | Protected | Detalle de propiedad |
+| GET/POST/DELETE | `/api/favorites` | Protected | CRUD favoritos |
+| POST | `/api/contact` | Protected | Contactar propietario |
 | GET/POST/DELETE | `/api/filters` | Protected | CRUD filtros de búsqueda |
 | GET/POST/PUT/DELETE | `/api/contracts` | Protected | CRUD contratos |
 | GET/POST/PUT/DELETE | `/api/maintenance` | Protected | CRUD gastos mantenimiento |

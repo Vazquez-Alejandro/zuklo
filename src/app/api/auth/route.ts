@@ -6,14 +6,15 @@ import { createSession, deleteSession, hashPassword, verifyPassword, getUserFrom
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";
 import { randomBytes } from "crypto";
+import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const start = Date.now();
   const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
 
-  const rl = rateLimit(`auth:${ip}`, 10, 60_000);
+  const rl = rateLimit(`auth:${ip}`, 20, 60_000);
   if (!rl.allowed) {
-    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    return NextResponse.json({ error: "Demasiados intentos. Esperá un minuto." }, { status: 429 });
   }
 
   try {
@@ -47,6 +48,17 @@ export async function POST(request: NextRequest) {
           name: user.name,
         });
 
+        const verToken = randomBytes(32).toString("hex");
+        const verExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await db.insert(verification).values({
+          id: randomBytes(16).toString("hex"),
+          identifier: `email-verify:${user.email}`,
+          value: verToken,
+          expiresAt: verExpires,
+        });
+        const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password?token=${verToken}&email=${encodeURIComponent(user.email)}`;
+        sendVerificationEmail(user.email, verifyUrl).catch(() => {});
+
         const response = NextResponse.json({
           user: { id: user.id, email: user.email, name: user.name },
           session: { accessToken: token },
@@ -65,6 +77,11 @@ export async function POST(request: NextRequest) {
       case "signin": {
         if (!email || !password) {
           return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 });
+        }
+
+        const loginRl = rateLimit(`auth:login:${email}`, 5, 900_000);
+        if (!loginRl.allowed) {
+          return NextResponse.json({ error: "Demasiados intentos fallidos. Esperá 15 minutos." }, { status: 429 });
         }
 
         const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -179,11 +196,11 @@ export async function POST(request: NextRequest) {
 
         const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
+        await sendPasswordResetEmail(email, resetUrl);
+
         logRequest("POST", "/api/auth", 200, Date.now() - start);
         return NextResponse.json({
           message: "Si el email está registrado, recibirás un link de recuperación",
-          resetUrl,
-          token,
         });
       }
 
@@ -239,10 +256,11 @@ export async function POST(request: NextRequest) {
 
         const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/auth?action=verify-email&token=${token}&email=${encodeURIComponent(authUser.email)}`;
 
+        await sendVerificationEmail(authUser.email, verifyUrl);
+
         logRequest("POST", "/api/auth", 200, Date.now() - start);
         return NextResponse.json({
           message: "Email de verificación enviado",
-          verifyUrl,
         });
       }
 

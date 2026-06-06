@@ -39,6 +39,80 @@ interface Property {
   landlordEmail: string | null;
 }
 
+function ContactForm({ propertyId, propertyTitle }: { propertyId: string; propertyTitle: string }) {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    if (message.length < 10) {
+      setError("El mensaje debe tener al menos 10 caracteres");
+      return;
+    }
+    setSending(true);
+    setError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ propertyId, message }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setError(data.error || "Error al enviar");
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError("Error de conexión");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+      <h2 className="text-lg font-semibold text-white mb-1">Contactar sobre esta propiedad</h2>
+      <p className="text-sm text-slate-400 mb-4">Enviá tu consulta al propietario o inmobiliaria</p>
+
+      {sent ? (
+        <div className="bg-emerald-500/20 border border-emerald-500/50 rounded-xl p-4 text-center">
+          <svg className="w-8 h-8 text-emerald-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          <p className="text-emerald-300 font-medium">Consulta enviada correctamente</p>
+          <p className="text-sm text-slate-400 mt-1">Te responderán pronto por email</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSend} className="space-y-3">
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+          <textarea
+            value={message}
+            onChange={(e) => { setMessage(e.target.value); setError(""); }}
+            placeholder="Hola, me interesa esta propiedad. ¿Se puede coordinar una visita?"
+            rows={4}
+            className="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+          />
+          <button
+            type="submit"
+            disabled={sending || message.length < 10}
+            className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-6 rounded-xl text-sm transition-colors"
+          >
+            {sending ? "Enviando..." : "Enviar consulta"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function formatPrice(price: string, currency: string) {
   const num = parseFloat(price);
   if (isNaN(num)) return "Consultar";
@@ -70,6 +144,8 @@ export default function PropertyDetailPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   useEffect(() => {
     async function fetchProperty() {
@@ -99,6 +175,41 @@ export default function PropertyDetailPage() {
 
     fetchProperty();
   }, [params.id, router]);
+
+  useEffect(() => {
+    if (!property) return;
+    fetch(`/api/favorites`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.favorites) {
+          setIsFavorite(data.favorites.some((f: any) => f.propertyId === property.id));
+        }
+      })
+      .catch(() => {});
+  }, [property?.id]);
+
+  async function toggleFavorite() {
+    if (!property) return;
+    setFavLoading(true);
+    try {
+      if (isFavorite) {
+        await fetch(`/api/favorites?propertyId=${property.id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        setIsFavorite(false);
+      } else {
+        await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ propertyId: property.id }),
+        });
+        setIsFavorite(true);
+      }
+    } catch {}
+    setFavLoading(false);
+  }
 
   if (loading) {
     return (
@@ -332,6 +443,20 @@ export default function PropertyDetailPage() {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={toggleFavorite}
+            disabled={favLoading}
+            className={`flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-xl transition-colors border ${
+              isFavorite
+                ? "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
+                : "bg-slate-700 text-white border-slate-600 hover:bg-slate-600"
+            }`}
+          >
+            <svg className="w-5 h-5" fill={isFavorite ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+            </svg>
+            {isFavorite ? "Guardada" : "Guardar"}
+          </button>
           <a
             href={property.url}
             target="_blank"
@@ -350,6 +475,9 @@ export default function PropertyDetailPage() {
             ← Volver
           </Link>
         </div>
+
+        {/* Contact Form */}
+        <ContactForm propertyId={property.id} propertyTitle={property.title} />
       </div>
     </DashboardLayout>
   );

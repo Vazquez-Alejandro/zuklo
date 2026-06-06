@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase";
 import { scrapeUrl, detectPortal, getAllPortals } from "@/lib/apify";
+import { scrapeWithCheerio } from "@/lib/scraper";
 import { deduplicateProperties, generatePropertyHash } from "@/lib/dedup";
 import { db } from "@/lib/db";
 import { properties } from "@/lib/schema";
@@ -39,15 +40,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let scraped: Awaited<ReturnType<typeof scrapeUrl>> = [];
-    let scrapeError: string | null = null;
+    let scraped: { portal: string; portalId: string; url: string; title: string; description?: string; price: number | string; currency: string; location?: { address?: string; city?: string; state?: string; country?: string; zip?: string; lat?: number; lng?: number }; features?: { bedrooms?: number; bathrooms?: number; area?: number; areaUnit?: string; parkingSpaces?: number }; images?: string[]; publishedAt?: string }[] = [];
+    let scrapeSource = "apify";
+
     try {
       scraped = await scrapeUrl(url);
-    } catch (scrapeErr: any) {
-      scrapeError = scrapeErr?.message || "Scraping failed";
+    } catch {
+      try {
+        const cheerioResults = await scrapeWithCheerio(url);
+        scraped = cheerioResults.map((r) => ({
+          ...r,
+          price: r.price,
+          location: { address: r.address, city: r.city, state: r.state, country: "AR" },
+          features: { bedrooms: r.bedrooms, bathrooms: r.bathrooms, area: parseInt(r.area) || 0, areaUnit: "m2" },
+        }));
+        scrapeSource = "cheerio";
+      } catch {
+        return NextResponse.json(
+          { error: "No se pudo scrapeo la URL. Intentá con otra URL.", status: "failed" },
+          { status: 422 }
+        );
+      }
     }
 
-    const newProperties = scrapeError ? [] : deduplicateProperties(scraped);
+    const newProperties = deduplicateProperties(scraped as any);
 
     let savedCount = 0;
     for (const prop of newProperties) {
@@ -89,14 +105,14 @@ export async function POST(request: NextRequest) {
     }
 
     const duration = Date.now() - start;
-    logRequest("POST", "/api/scrape", scrapeError ? 207 : 200, duration, user.id);
+    logRequest("POST", "/api/scrape", 200, duration, user.id);
     return NextResponse.json({
       portal: portal.name,
       scraped: scraped.length,
       new: savedCount,
       duplicates: scraped.length - savedCount,
-      status: scrapeError ? "degraded" : "completed",
-      ...(scrapeError ? { scrapeError, message: "Apify scraping unavailable. Showing seeded properties from DB." } : {}),
+      status: "completed",
+      source: scrapeSource,
     });
   } catch (e) {
     if (e instanceof Error && e.message === "Unauthorized") {

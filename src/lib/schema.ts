@@ -205,6 +205,25 @@ export const properties = pgTable(
   ],
 );
 
+// ─── Favorites ─────────────────────────────────────────
+
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id").notNull(),
+    propertyId: text("property_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_favorites_user_property").on(t.userId, t.propertyId),
+    index("idx_favorites_user").on(t.userId),
+    index("idx_favorites_property").on(t.propertyId),
+  ],
+);
+
 // ─── Scraping jobs (migration 001) ─────────────────────
 
 export const scrapingJobs = pgTable(
