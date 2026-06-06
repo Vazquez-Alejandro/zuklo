@@ -143,6 +143,13 @@ npm run test:watch  # watch mode
 - [x] Deploy Vercel: https://zuklo.vercel.app
 - [x] Todas las env vars configuradas en Vercel (Neon, Stripe, Apify, JWT)
 - [x] README.md completo con documentación real del proyecto
+- [x] Resend email service — verificación, reset password, contacto propietario
+- [x] Favoritos — tabla, API, UI (botón guardar en detalle de propiedad)
+- [x] Contactar propietario — formulario + envío de email
+- [x] Centro de notificaciones — página con historial de alertas
+- [x] Cheerio scraper fallback — scraping sin Apify para Zonaprop/Argenprop
+- [x] Brute-force protection — rate limiting estricto en login (5 intentos/15min)
+- [x] 16 tablas en DB (favoritos agregada)
 
 ### 🔲 Pendiente - Crítico (bloquea lanzamiento)
 - [x] **Fix auth**: login no verifica password, signup no hashea — cualquier password funciona
@@ -154,12 +161,12 @@ npm run test:watch  # watch mode
 - [x] **Eliminación de cuenta** — botón deshabilitado, sin API
 
 ### 🔲 Pendiente - Alto (debería tener para lanzar)
-- [ ] **Favoritos/Guardados** — sin tabla, sin API, sin UI
-- [ ] **Contactar propietario** — sin formulario ni messaging
-- [ ] **Centro de notificaciones** — API existe, falta la página
-- [ ] **SEO por página** — sin metadata, sitemap, robots, OG
-- [ ] **Componentes reutilizables** — Pagination, FormField inline
-- [ ] **Preferencias notificaciones** — en settings es solo estado local, no persiste
+- [x] **Favoritos/Guardados** — sin tabla, sin API, sin UI
+- [x] **Contactar propietario** — sin formulario ni messaging
+- [x] **Centro de notificaciones** — API existe, falta la página
+- [x] **SEO por página** — sin metadata, sitemap, robots, OG
+- [x] **Componentes reutilizables** — Pagination, FormField inline
+- [x] **Preferencias notificaciones** — en settings es solo estado local, no persiste
 
 ### 🔲 Pendiente - Configuración Externa (requiere servicios)
 - [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs en .env.local
