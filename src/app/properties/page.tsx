@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
@@ -428,9 +429,10 @@ export default function PropertiesPage() {
                 expensesFormatted && parseFloat(property.expenses ?? "0") > 0;
 
               return (
-                <div
+                <Link
                   key={property.id}
-                  className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-colors flex flex-col"
+                  href={`/properties/${property.id}`}
+                  className="block bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-colors flex flex-col"
                 >
                   {/* Image */}
                   <div className="relative h-48 bg-slate-700/30">
@@ -601,13 +603,8 @@ export default function PropertiesPage() {
                           )}
                         </span>
                       )}
-                      <a
-                        href={property.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-1 transition-colors"
-                      >
-                        Ver publicacion
+                      <span className="text-emerald-400 text-xs font-medium flex items-center gap-1">
+                        Ver detalle
                         <svg
                           className="w-3.5 h-3.5"
                           fill="none"
@@ -618,13 +615,13 @@ export default function PropertiesPage() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            d="M9 5l7 7-7 7"
                           />
                         </svg>
-                      </a>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

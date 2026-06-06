@@ -25,6 +25,8 @@ interface AuthContextType {
   ) => Promise<{ error?: string; message?: string }>;
   signOut: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ error?: string; message?: string }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error?: string; message?: string }>;
+  deleteAccount: () => Promise<{ error?: string; message?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -152,12 +154,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const forgotPassword = async (email: string) => {
-    return { message: "Función no disponible aún" };
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "forgot-password", email }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        return { error: data.error };
+      }
+
+      return { message: data.message || "Si el email está registrado, recibirás un link de recuperación" };
+    } catch {
+      return { error: "Error de conexión" };
+    }
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "update-password", currentPassword, password: newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        return { error: data.error || "Error al cambiar contraseña" };
+      }
+
+      return { message: data.message || "Contraseña actualizada correctamente" };
+    } catch {
+      return { error: "Error de conexión" };
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "delete-account" }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        return { error: data.error || "Error al eliminar cuenta" };
+      }
+
+      setUser(null);
+      window.location.href = "/login";
+      return { message: data.message || "Cuenta eliminada" };
+    } catch {
+      return { error: "Error de conexión" };
+    }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signIn, signUp, signOut, forgotPassword }}
+      value={{ user, loading, signIn, signUp, signOut, forgotPassword, changePassword, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

@@ -25,7 +25,7 @@ Plataforma de búsqueda y gestión de alquileres de propiedades para Argentina. 
 
 ### Implementadas
 
-- **Autenticación** — Login, signup, sesiones JWT (7 días), middleware de protección de rutas
+- **Autenticación** — Login, signup, sesiones JWT (7 días), middleware de protección de rutas, verificación de email, reset de password
 - **Dashboard** — Stat cards, scraping rápido, grilla de portales, auto-refresh
 - **Búsqueda de propiedades** — Búsqueda por texto, filtros avanzados (barrio, precio, moneda, dormitorios, mascotas), paginación
 - **Filtros/Alertas** — CRUD de filtros de búsqueda con límites por plan (Free: 2, Premium: ilimitado)

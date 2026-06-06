@@ -145,13 +145,13 @@ npm run test:watch  # watch mode
 - [x] README.md completo con documentación real del proyecto
 
 ### 🔲 Pendiente - Crítico (bloquea lanzamiento)
-- [ ] **Fix auth**: login no verifica password, signup no hashea — cualquier password funciona
-- [ ] **Página detalle de propiedad** `/properties/[id]` — no existe, solo cards con link externo
-- [ ] **Reset de password** — stub que dice "no disponible aún", falta flujo completo con email
-- [ ] **Verificación de email** — campo existe en DB pero nunca se usa
-- [ ] **Páginas éxito/cancel de Stripe** — redirigen a 404 después de pagar
-- [ ] **Cambio de password** en settings — endpoint no existe
-- [ ] **Eliminación de cuenta** — botón deshabilitado, sin API
+- [x] **Fix auth**: login no verifica password, signup no hashea — cualquier password funciona
+- [x] **Página detalle de propiedad** `/properties/[id]` — no existe, solo cards con link externo
+- [x] **Reset de password** — stub que dice "no disponible aún", falta flujo completo con email
+- [x] **Verificación de email** — campo existe en DB pero nunca se usa
+- [x] **Páginas éxito/cancel de Stripe** — redirigen a 404 después de pagar
+- [x] **Cambio de password** en settings — endpoint no existe
+- [x] **Eliminación de cuenta** — botón deshabilitado, sin API
 
 ### 🔲 Pendiente - Alto (debería tener para lanzar)
 - [ ] **Favoritos/Guardados** — sin tabla, sin API, sin UI

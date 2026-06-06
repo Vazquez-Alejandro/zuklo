@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
 
 export default function SettingsPage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, changePassword, deleteAccount } = useAuth();
   const { showToast } = useToast();
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -24,6 +24,16 @@ export default function SettingsPage() {
   });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    const result = await deleteAccount();
+    if (result.error) {
+      showToast(result.error, "error");
+      setDeleteLoading(false);
+    }
+  }
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
@@ -43,20 +53,11 @@ export default function SettingsPage() {
     setPasswordLoading(true);
 
     try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update-password",
-          currentPassword,
-          newPassword,
-        }),
-      });
+      const result = await changePassword(currentPassword, newPassword);
 
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        setPasswordErr(data.error || "Error al cambiar contraseña");
+      if (result.error) {
+        setPasswordErr(result.error);
+        showToast(result.error, "error");
         return;
       }
 
@@ -258,10 +259,11 @@ export default function SettingsPage() {
               <p className="text-sm text-red-300">¿Estás completamente seguro?</p>
               <div className="flex flex-wrap gap-3">
                 <button
-                  disabled
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading}
                   className="px-5 py-2.5 rounded-xl text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
                 >
-                  Sí, eliminar mi cuenta
+                  {deleteLoading ? "Eliminando..." : "Sí, eliminar mi cuenta"}
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
