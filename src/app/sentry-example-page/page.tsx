@@ -1,11 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 
 export default function SentryExamplePage() {
+  useEffect(() => {
+    console.log("Sentry client loaded, transport active");
+  }, []);
+
   function triggerError() {
-    Sentry.captureException(new Error("Sentry test error from Zuklo!"));
-    alert("Error enviado a Sentry. Revisá sentry.io → Issues");
+    console.log("Triggering Sentry error...");
+    try {
+      Sentry.captureException(new Error("Sentry test error from Zuklo!"));
+      console.log("Error sent to Sentry!");
+      alert("Error enviado a Sentry. Revisá sentry.io → Issues");
+    } catch (e) {
+      console.error("Failed to send to Sentry:", e);
+      alert("Error: " + e);
+    }
   }
 
   return (
