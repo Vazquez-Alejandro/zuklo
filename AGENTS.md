@@ -180,12 +180,14 @@ npm run test:watch  # watch mode
 - [ ] RLS policies a nivel de usuario (unificar TEXT/UUID user_id)
 
 ### 🔲 Pendiente - Medio (post-lanzamiento)
-- [ ] Panel admin
-- [ ] Onboarding wizard para nuevos usuarios
-- [ ] Test de componentes y API routes
-- [ ] Configurar imágenes externas en next.config.ts (dominios de portales)
-- [ ] Limpiar dependencia `@supabase/supabase-js` (ya no se usa)
-- [ ] Renombrar `src/lib/supabase.ts` (es wrapper de auth.ts)
+- [x] Panel admin
+- [x] Onboarding wizard para nuevos usuarios
+- [x] Test de componentes y API routes
+- [x] Configurar imágenes externas en next.config.ts (dominios de portales)
+- [x] Limpiar dependencia `@supabase/supabase-js` (ya no se usa)
+- [x] Renombrar `src/lib/supabase.ts` (es wrapper de auth.ts)
+- [x] SEO completo (sitemap, robots, metadata por página, OG)
+- [x] 96 tests pasando (4 lib + 3 scraper + 4 email + 3 auth + 87 originales)
 
 ### 🔲 Pendiente - Bajo (futuro)
 - [ ] Analytics dashboard (Vercel Analytics o Plausible)
