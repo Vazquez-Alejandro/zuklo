@@ -1,8 +1,11 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
+
 export default function SentryExamplePage() {
   function triggerError() {
-    throw new Error("Sentry test error from Zuklo!");
+    Sentry.captureException(new Error("Sentry test error from Zuklo!"));
+    alert("Error enviado a Sentry. Revisá sentry.io → Issues");
   }
 
   return (
