@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { properties } from "@/lib/schema";
-import { requireAuth } from "@/lib/supabase";
+import { requireAuth } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";
 

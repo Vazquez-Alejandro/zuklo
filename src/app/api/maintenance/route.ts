@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/supabase";
+import { requireAuth } from "@/lib/auth";
 import {
   createMaintenanceExpense,
   getMaintenanceExpensesByContract,

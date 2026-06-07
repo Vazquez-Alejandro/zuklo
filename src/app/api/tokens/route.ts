@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/supabase";
+import { requireAuth } from "@/lib/auth";
 import { registerDeviceToken, removeDeviceToken, getUserTokens } from "@/lib/notification-service";
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";

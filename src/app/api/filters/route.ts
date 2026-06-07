@@ -6,7 +6,7 @@ import {
   type CreateFilterInput,
 } from "@/lib/filters";
 import { checkFeatureAccess, incrementUsage } from "@/lib/monetization";
-import { requireAuth } from "@/lib/supabase";
+import { requireAuth } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { logRequest } from "@/lib/logger";
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/supabase";
+import { requireAuth } from "@/lib/auth";
 import { scrapeUrl, detectPortal, getAllPortals } from "@/lib/apify";
 import { scrapeWithCheerio } from "@/lib/scraper";
 import { deduplicateProperties, generatePropertyHash } from "@/lib/dedup";

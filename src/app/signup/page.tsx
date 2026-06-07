@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
 
 export default function SignupPage() {
   const { signUp } = useAuth();
   const { showToast } = useToast();
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -59,8 +61,10 @@ export default function SignupPage() {
     if (result.message) {
       setMessage(result.message);
       showToast(result.message, "success");
+      setTimeout(() => router.push("/onboarding"), 1000);
     } else {
       showToast("Cuenta creada correctamente", "success");
+      setTimeout(() => router.push("/onboarding"), 1000);
     }
 
     setLoading(false);

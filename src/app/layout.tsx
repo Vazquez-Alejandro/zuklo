@@ -16,8 +16,37 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zuklo",
-  description: "Plataforma de alquileres de propiedades",
+  title: {
+    default: "Zuklo - Alquileres de propiedades en Argentina",
+    template: "%s | Zuklo",
+  },
+  description: "Encontrá tu próximo alquiler en Argentina. Buscá, compará y gestioná propiedades desde un solo lugar.",
+  keywords: ["alquileres", "propiedades", "departamentos", "casas", "Argentina", "Buenos Aires", "inmobiliario"],
+  authors: [{ name: "Zuklo" }],
+  creator: "Zuklo",
+  openGraph: {
+    type: "website",
+    locale: "es_AR",
+    siteName: "Zuklo",
+    title: "Zuklo - Alquileres de propiedades en Argentina",
+    description: "Encontrá tu próximo alquiler en Argentina. Buscá, compará y gestioná propiedades desde un solo lugar.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Zuklo - Alquileres de propiedades en Argentina",
+    description: "Encontrá tu próximo alquiler en Argentina. Buscá, compará y gestioná propiedades desde un solo lugar.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({

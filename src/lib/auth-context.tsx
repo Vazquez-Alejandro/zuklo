@@ -133,6 +133,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: data.error };
       }
 
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+        });
+      }
+
       return { message: "Cuenta creada exitosamente" };
     } catch {
       return { error: "Error de conexion" };

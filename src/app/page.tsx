@@ -1,4 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Zuklo - Alquileres de propiedades en Argentina",
+  description: "Encontrá tu próximo alquiler en Argentina. Buscá, compará y gestioná propiedades desde un solo lugar.",
+  openGraph: {
+    title: "Zuklo - Alquileres de propiedades en Argentina",
+    description: "Encontrá tu próximo alquiler en Argentina. Buscá, compará y gestioná propiedades desde un solo lugar.",
+  },
+};
 
 const FEATURES = [
   { icon: "🔍", title: "Búsqueda inteligente", desc: "Definí lo que buscás y nosotros nos encargamos del resto" },
