@@ -8,6 +8,7 @@ const publicRoutes = [
   "/forgot-password",
   "/reset-password",
   "/onboarding",
+  "/sentry-example-page",
   "/pricing",
   "/about",
   "/api/auth",
