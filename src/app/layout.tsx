@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/toast";
 import { CookieConsent } from "@/components/cookie-consent";
+import "../sentry.client.config";
 import "./globals.css";
 
 const geistSans = Geist({
