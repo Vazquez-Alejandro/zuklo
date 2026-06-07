@@ -176,6 +176,13 @@ npm run test:watch  # watch mode
 - [ ] Configurar Sentry DSN en .env.local (NEXT_PUBLIC_SENTRY_DSN)
 - [ ] Conectar audit_logs a tabla real (requiere migración 005 en DB)
 
+### 🔲 Para mañana — Lanzamiento
+- [ ] Crear cuenta Stripe → crear productos Premium y Pro → copiar price IDs
+- [ ] Configurar Stripe Webhooks (endpoint: https://zuklo.vercel.app/api/webhook)
+- [ ] Configurar dominio personalizado en Vercel
+- [ ] Crear cuenta Sentry → copiar DSN en Vercel
+- [ ] Probar flujo completo: registro → onboarding → buscar propiedad → detalle → favorito → contacto → pagar
+
 ### 🔲 Pendiente - Seguridad
 - [ ] RLS policies a nivel de usuario (unificar TEXT/UUID user_id)
 
