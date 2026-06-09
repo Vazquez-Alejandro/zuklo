@@ -197,8 +197,9 @@ npm run test:watch  # watch mode
 - [x] 96 tests pasando (4 lib + 3 scraper + 4 email + 3 auth + 87 originales)
 
 ### 🔲 Pendiente - Bajo (futuro)
-- [ ] Analytics dashboard (Vercel Analytics o Plausible)
+- [x] Analytics dashboard (Vercel Analytics + Speed Insights)
+- [x] PWA / manifest.json + service worker
+- [x] Multi-idioma (i18n es/en con language switcher)
+- [x] E2E tests (Playwright setup + basic tests)
 - [ ] API keys para plan Pro
-- [ ] Multi-idioma
-- [ ] PWA / manifest.json
-- [ ] E2E tests (Playwright)
+- [ ] RLS policies a nivel de usuario (unificar TEXT/UUID user_id - requiere migración DB)
