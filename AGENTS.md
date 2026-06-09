@@ -169,16 +169,16 @@ npm run test:watch  # watch mode
 - [x] **Preferencias notificaciones** — en settings es solo estado local, no persiste
 
 ### 🔲 Pendiente - Configuración Externa (requiere servicios)
-- [ ] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs en .env.local
-- [ ] Configurar Stripe Webhooks en producción (endpoint: /api/webhook, events: checkout.session.completed, customer.subscription.*, invoice.*)
-- [ ] Configurar Firebase Cloud Messaging (proyecto + vapid key para push notifications)
-- [ ] Deploy a Vercel (dominio, SSL, env vars en producción)
+- [x] Crear productos Stripe (Premium $4999/mes, Pro $9999/mes), copiar price IDs en .env.local
+- [x] Configurar Stripe Webhooks en producción (endpoint: /api/webhook, events: checkout.session.completed, customer.subscription.*, invoice.*)
+- [x] Configurar Firebase Cloud Messaging (proyecto + vapid key para push notifications)
+- [x] Deploy a Vercel (dominio, SSL, env vars en producción)
 - [ ] Configurar Sentry DSN en .env.local (NEXT_PUBLIC_SENTRY_DSN)
 - [ ] Conectar audit_logs a tabla real (requiere migración 005 en DB)
 
 ### 🔲 Para mañana — Lanzamiento
-- [ ] Crear cuenta Stripe → crear productos Premium y Pro → copiar price IDs
-- [ ] Configurar Stripe Webhooks (endpoint: https://zuklo.vercel.app/api/webhook)
+- [x] Crear cuenta Stripe → crear productos Premium y Pro → copiar price IDs
+- [x] Configurar Stripe Webhooks (endpoint: https://zuklo.vercel.app/api/webhook)
 - [ ] Configurar dominio personalizado en Vercel
 - [ ] Crear cuenta Sentry → copiar DSN en Vercel
 - [ ] Probar flujo completo: registro → onboarding → buscar propiedad → detalle → favorito → contacto → pagar
