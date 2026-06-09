@@ -17,10 +17,11 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string }>({});
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string; terms?: string }>({});
 
   function validate(): boolean {
-    const errs: { name?: string; email?: string; password?: string; confirmPassword?: string } = {};
+    const errs: { name?: string; email?: string; password?: string; confirmPassword?: string; terms?: string } = {};
     if (!name.trim()) errs.name = "El nombre es requerido";
     if (!email) {
       errs.email = "El email es requerido";
@@ -37,6 +38,9 @@ export default function SignupPage() {
     } else if (password !== confirmPassword) {
       errs.confirmPassword = "Las contraseñas no coinciden";
     }
+    if (!acceptedTerms) {
+      errs.terms = "Debés aceptar los Términos y Condiciones";
+    }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -49,7 +53,7 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    const result = await signUp(email, password, name);
+    const result = await signUp(email, password, name, { termsAccepted: true, termsAcceptedAt: new Date().toISOString() });
 
     if (result.error) {
       setError(result.error);
@@ -157,6 +161,27 @@ export default function SignupPage() {
               />
               {fieldErrors.confirmPassword && <p className="text-red-400 text-sm mt-1">{fieldErrors.confirmPassword}</p>}
             </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                id="terms"
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => { setAcceptedTerms(e.target.checked); setFieldErrors((p) => ({ ...p, terms: undefined })); }}
+                className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-700/50 text-emerald-500 focus:ring-emerald-500"
+              />
+              <label htmlFor="terms" className="text-sm text-slate-400">
+                Acepto los{" "}
+                <Link href="/terms" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">
+                  Términos y Condiciones
+                </Link>{" "}
+                y la{" "}
+                <Link href="/privacy" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">
+                  Política de Privacidad
+                </Link>
+              </label>
+            </div>
+            {fieldErrors.terms && <p className="text-red-400 text-sm">{fieldErrors.terms}</p>}
 
             <button
               type="submit"

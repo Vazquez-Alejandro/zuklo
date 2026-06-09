@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
         if (password.length < 6) {
           return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 });
         }
+        if (!body.termsAccepted) {
+          return NextResponse.json({ error: "Debés aceptar los Términos y Condiciones" }, { status: 400 });
+        }
 
         const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
         if (existing.length > 0) {
@@ -40,6 +43,7 @@ export async function POST(request: NextRequest) {
           email,
           name: name || null,
           password: passwordHash,
+          termsAcceptedAt: body.termsAcceptedAt ? new Date(body.termsAcceptedAt) : null,
         }).returning();
 
         const token = await createSession({
@@ -305,6 +309,21 @@ export async function POST(request: NextRequest) {
 
         logRequest("POST", "/api/auth", 200, Date.now() - start);
         return response;
+      }
+
+      case "accept-terms": {
+        const authUser = await getUserFromRequest(request);
+        if (!authUser) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await db.update(users).set({
+          termsAcceptedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(users.id, authUser.id));
+
+        logRequest("POST", "/api/auth", 200, Date.now() - start);
+        return NextResponse.json({ message: "Términos aceptados" });
       }
 
       default:

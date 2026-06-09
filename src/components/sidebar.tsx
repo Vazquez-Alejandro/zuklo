@@ -67,6 +67,11 @@ export function Sidebar() {
           <span className="text-base">🚪</span>
           Cerrar sesion
         </button>
+        <div className="flex items-center gap-3 px-3 pt-3 mt-3 border-t border-slate-700/50">
+          <Link href="/terms" className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors">Términos</Link>
+          <Link href="/privacy" className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors">Privacidad</Link>
+          <span className="text-[11px] text-slate-600">© 2026</span>
+        </div>
       </div>
     </>
   );

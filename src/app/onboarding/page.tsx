@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
 
@@ -46,6 +47,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [saving, setSaving] = useState(false);
 
   function toggleType(id: string) {
@@ -75,6 +77,16 @@ export default function OnboardingPage() {
           },
         }),
       });
+
+      if (acceptedTerms) {
+        await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ action: "accept-terms" }),
+        });
+      }
+
       showToast("¡Configuración completada!", "success");
       router.push("/dashboard");
     } catch {
@@ -106,6 +118,30 @@ export default function OnboardingPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-white">{STEPS[step].title}</h1>
             <p className="text-slate-400 mt-2">{STEPS[step].desc}</p>
           </div>
+
+          {step === 0 && (
+            <div className="mb-6">
+              <div className="flex items-start gap-3">
+                <input
+                  id="onb-terms"
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-700/50 text-emerald-500 focus:ring-emerald-500"
+                />
+                <label htmlFor="onb-terms" className="text-sm text-slate-400">
+                  Acepto los{" "}
+                  <Link href="/terms" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">
+                    Términos y Condiciones
+                  </Link>{" "}
+                  y la{" "}
+                  <Link href="/privacy" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">
+                    Política de Privacidad
+                  </Link>
+                </label>
+              </div>
+            </div>
+          )}
 
           {step === 1 && (
             <div className="grid grid-cols-2 gap-3 mb-6">
@@ -156,7 +192,13 @@ export default function OnboardingPage() {
             )}
             {step < STEPS.length - 1 ? (
               <button
-                onClick={() => setStep(step + 1)}
+                onClick={() => {
+                  if (step === 0 && !acceptedTerms) {
+                    showToast("Debés aceptar los Términos y Condiciones", "error");
+                    return;
+                  }
+                  setStep(step + 1);
+                }}
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-colors"
               >
                 Siguiente
