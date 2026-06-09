@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "properties": "Propiedades",
+    "alerts": "Alertas",
+    "notifications": "Notificaciones",
+    "contracts": "Contratos",
+    "maintenance": "Mantenimiento",
+    "billing": "Facturación",
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "logout": "Cerrar sesión"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "signup": "Registrate",
+    "email": "Email",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "name": "Nombre",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tenés cuenta?",
+    "hasAccount": "¿Ya tenés cuenta?",
+    "createAccount": "Crear cuenta",
+    "loggingIn": "Iniciando sesión...",
+    "creating": "Creando cuenta..."
+  },
+  "properties": {
+    "title": "Propiedades",
+    "search": "Buscar propiedades...",
+    "filters": "Filtros",
+    "noResults": "No se encontraron propiedades",
+    "bedrooms": "Dormitorios",
+    "bathrooms": "Baños",
+    "area": "Superficie",
+    "price": "Precio",
+    "expenses": "Expensas",
+    "contact": "Contactar propietario",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "viewDetails": "Ver detalle"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Bienvenido",
+    "totalProperties": "Propiedades",
+    "activeAlerts": "Alertas activas",
+    "savedFavorites": "Favoritos"
+  },
+  "legal": {
+    "terms": "Términos",
+    "privacy": "Privacidad",
+    "acceptTerms": "Acepto los Términos y Condiciones y la Política de Privacidad",
+    "termsLink": "Términos y Condiciones",
+    "privacyLink": "Política de Privacidad"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "skip": "Saltar por ahora",
+    "copyright": "© 2026 Zuklo. Todos los derechos reservados."
+  }
+}

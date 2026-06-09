@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "properties": "Properties",
+    "alerts": "Alerts",
+    "notifications": "Notifications",
+    "contracts": "Contracts",
+    "maintenance": "Maintenance",
+    "billing": "Billing",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "auth": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "name": "Name",
+    "forgotPassword": "Forgot your password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "createAccount": "Create account",
+    "loggingIn": "Logging in...",
+    "creating": "Creating account..."
+  },
+  "properties": {
+    "title": "Properties",
+    "search": "Search properties...",
+    "filters": "Filters",
+    "noResults": "No properties found",
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms",
+    "area": "Area",
+    "price": "Price",
+    "expenses": "Expenses",
+    "contact": "Contact landlord",
+    "save": "Save",
+    "saved": "Saved",
+    "viewDetails": "View details"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "totalProperties": "Properties",
+    "activeAlerts": "Active alerts",
+    "savedFavorites": "Favorites"
+  },
+  "legal": {
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "acceptTerms": "I accept the Terms and Conditions and the Privacy Policy",
+    "termsLink": "Terms and Conditions",
+    "privacyLink": "Privacy Policy"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip for now",
+    "copyright": "© 2026 Zuklo. All rights reserved."
+  }
+}

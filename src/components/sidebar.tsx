@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/i18n";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -20,6 +21,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { locale, setLocale } = useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (href: string) => {
@@ -70,6 +72,13 @@ export function Sidebar() {
         <div className="flex items-center gap-3 px-3 pt-3 mt-3 border-t border-slate-700/50">
           <Link href="/terms" className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors">Términos</Link>
           <Link href="/privacy" className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors">Privacidad</Link>
+          <button
+            onClick={() => setLocale(locale === "es" ? "en" : "es")}
+            className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors ml-auto cursor-pointer"
+            title={locale === "es" ? "Switch to English" : "Cambiar a español"}
+          >
+            {locale === "es" ? "EN" : "ES"}
+          </button>
           <span className="text-[11px] text-slate-600">© 2026</span>
         </div>
       </div>
